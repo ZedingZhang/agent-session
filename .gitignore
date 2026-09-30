@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.agent-session/
+*.tgz
+*.tmp
+.env
+.DS_Store

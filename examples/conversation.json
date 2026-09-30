@@ -1,0 +1,9 @@
+{
+  "id": "example-json-session",
+  "title": "A portable conversation",
+  "messages": [
+    { "role": "system", "content": "You are a helpful assistant." },
+    { "role": "user", "content": "Hello", "timestamp": "2026-09-30T00:00:00Z" },
+    { "role": "assistant", "content": [{ "type": "text", "text": "Hello!" }], "timestamp": "2026-09-30T00:00:01Z" }
+  ]
+}
