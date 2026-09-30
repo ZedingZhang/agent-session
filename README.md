@@ -4,7 +4,7 @@
 
 A local-first archive for AI agent conversations. Import different agent formats into one versioned **JSONL event stream**, browse history from the CLI, and merge file libraries without a server or database. Each source format lives in a small adapter that the community can extend.
 
-**MVP:** DeepSeek Harness canonical session logs and export ZIPs, generic JSON/JSONL, Markdown transcripts, a TypeScript SDK, and external ESM adapters. MIT licensed. Requires Node.js **24+**.
+**MVP:** DeepSeek Harness native JSONL / Zstandard session logs and session directories, export ZIPs, generic JSON/JSONL, Markdown transcripts, a TypeScript SDK, and external ESM adapters. MIT licensed. Requires Node.js **24+**.
 
 ## Quick start
 
@@ -58,6 +58,7 @@ If build output overlaps the next prompt or typed command, use `npm.cmd --silent
 agent-session --help
 agent-session --library ./my-library import conversation.json --adapter json
 agent-session import session.v4.jsonl --adapter deepseek-harness
+agent-session import session.v4.jsonl.zstd
 agent-session import dsh-session-example.zip
 agent-session list --adapter deepseek-harness --query README
 agent-session list --json
@@ -76,15 +77,37 @@ The default library is `~/.agent-session`. Override it with `AGENT_SESSION_HOME`
 
 | Adapter | Input | Behavior |
 | --- | --- | --- |
-| `deepseek-harness` | Canonical `session[.vN].jsonl`, `{ "header": ..., "events": [...] }`, or Web export `.zip` | Reads headers 1–4; normalizes messages and tool events, preserves original rows |
+| `deepseek-harness` | Native `session[.vN].jsonl[.zstd]`, `{ "header": ..., "events": [...] }`, a session directory, or export `.zip` | Reads headers 0–4; normalizes messages and tool events, preserves original rows |
 | `json` | A message array, `{ "title": ..., "messages": [...] }`, `{ "events": [...] }`, a single message, or JSONL rows | `role` + `content` messages; unknown typed events remain `source.event` |
 | `markdown` | `.md` / `.markdown` with role headings | Converts `## User`, `## Assistant`, `## System`, `## Developer`, `## Tool` (also `Human`) into messages |
 
 DeepSeek auto-detection runs before generic JSON detection. Unknown formats fail clearly; choose an adapter explicitly when necessary. Markdown headings inside fenced code are treated as content. Surrounding Markdown message whitespace is trimmed; the preamble is retained in source metadata. Generic JSON accepts strings, structured blocks, or other JSON content and preserves each original message, including tool-call extensions, in `raw`.
 
-The DeepSeek adapter is based on the [official session types](https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/core/session/src/types.ts) and [canonical export implementation](https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/session-query/session-log-export/src/archive.ts). Fixtures cover native v4 tool messages and legacy v3 tool-result wrappers. Older/unrecognized event shapes remain raw source events; this project does not run DeepSeek's migration engine.
+The DeepSeek adapter is based on the [official session types](https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/core/session/src/types.ts) and [canonical export implementation](https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/session-query/session-log-export/src/archive.ts). Fixtures cover native v4 tool messages, legacy v3 tool-result wrappers and v0 compact batches. Compact chunk batches remain complete `source.event` records with their original arrays and `time0` timestamp; they are not expanded into synthetic messages. Other unrecognized event shapes also remain raw source events; this project does not run DeepSeek's migration engine.
 
-ZIP imports root and descendant session logs without extracting paths to disk. Attachment references are retained, but ZIP image/file binaries are **not archived** in this MVP; the CLI reports that limitation. Compressed `.jsonl.zstd` persistence files are not supported; use a canonical Harness export. Unsupported newer log versions fail before any sessions from that input are published. Input files and aggregate uncompressed ZIP session logs default to a 64 MiB limit; the SDK exposes `maxBytes`.
+### Import native DeepSeek Harness data
+
+No export button or export plugin is required. Import the compressed persistence file directly, or pass your DSH session directory:
+
+```powershell
+# Windows PowerShell; default local DSH installation
+node dist/cli.js import "$env:USERPROFILE\.dsh\sessions"
+node dist/cli.js history
+
+# One session file; substitute its actual path
+node dist/cli.js import "C:\path\to\session.v4.jsonl.zstd"
+```
+
+```sh
+# macOS / Linux; or point to your configured persistence root
+node dist/cli.js import "$HOME/.dsh/sessions"
+```
+
+Directory import recursively discovers `session[.vN].jsonl[.zstd]` and selects the highest generation in each session directory, preferring compressed logs when both representations exist. It skips unrelated files and does not follow symlink directories. Older generations remain directly importable by specifying their file path. A directory import stops on the first error and retains earlier successful imports; retrying deduplicates them.
+
+Native DSH compressed logs consist of independent concatenated Zstandard frames: one header frame followed by append-batch frames. The reader walks frame headers and block lengths, then decompresses **every frame** using Node's built-in `zlib.zstdDecompressSync`. A single call on the concatenated input may only return the first frame on affected Node versions. No additional compression dependency is needed. Standard skippable frames are ignored; truncated tails, malformed frames and checksum failures report errors instead of silently saving a header-only or partial history. A single file is fully decoded and normalized before publication. Compressed and uncompressed versions of the same logical log produce the same identity.
+
+ZIP imports root and descendant uncompressed session logs without extracting paths to disk. Attachment references are retained, but attachment binaries are **not archived** in this MVP; the CLI reports that limitation for ZIPs. Unsupported newer log versions fail before any sessions from that single file or ZIP are published. Input files, decoded Zstandard text and aggregate uncompressed ZIP session logs each default to a 64 MiB limit; the SDK exposes `maxBytes`. The limit applies per selected file during directory import.
 
 ## Unified event schema
 
@@ -154,6 +177,6 @@ npm run schema
 npm pack --dry-run
 ```
 
-Tests cover adapter normalization, unknown event retention, fenced Markdown, hash/sequence validation, concurrent publication, deduplication, export/re-import, sync corruption checks, ZIP size limits, plugin loading and actual CLI workflows. CI runs checks on Linux, macOS and Windows with Node 24 and 26, and verifies that the committed JSON Schema is current.
+Tests cover adapter normalization, unknown event retention, fenced Markdown, hash/sequence validation, concurrent publication, deduplication, export/re-import, sync corruption checks, ZIP size limits, plugin loading and actual CLI workflows. Zstandard regressions cover thousands of append frames, raw/RLE/multi-block frames, skippable metadata, unknown content sizes, checksums, truncated tails, output limits, legacy compact rows and directory generation selection. CI runs checks on Linux, macOS and Windows with Node 24 and 26, and verifies that the committed JSON Schema is current.
 
 Future work: live incremental ingestion, searchable derived indexes, attachment storage, more community adapters, and session lineage browsing. MVP history is a chronological source archive; fork seeds and source `surfaceOp` edits are retained as raw metadata, not replayed into a reconstructed agent runtime view.

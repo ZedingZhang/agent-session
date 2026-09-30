@@ -1,6 +1,6 @@
 {
   "name": "@zedings/agent-session",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local-first AI agent session archive with a unified JSONL schema and pluggable adapters",
   "engines": { "node": ">=24" },
   "bin": { "agent-session": "dist/cli.js" },

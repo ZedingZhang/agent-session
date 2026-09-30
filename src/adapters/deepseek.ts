@@ -4,7 +4,7 @@ import type { EventDraft } from '../schema.js';
 import type { SessionAdapter } from './types.js';
 import { object, parseJson, sourceEvent, timestamp } from './utils.js';
 export const deepseekAdapter: SessionAdapter = {
-  id: 'deepseek-harness', version: '1.0.0', description: 'DeepSeek Harness canonical JSONL export (headers 1–4) / header-events JSON',
+  id: 'deepseek-harness', version: '1.1.0', description: 'DeepSeek Harness native JSONL / concatenated .jsonl.zstd (headers 0–4)',
   detect(input) {
     try {
       const parsed = parseJson(input.content);
@@ -16,8 +16,8 @@ export const deepseekAdapter: SessionAdapter = {
     const parsed = parseJson(input.content);
     const root = Array.isArray(parsed) ? undefined : object(parsed);
     const header = object(Array.isArray(parsed) ? parsed[0] : root?.type === 'session' ? root : root?.header);
-    if (header.type !== 'session' || ![1, 2, 3, 4].includes(Number(header.version)))
-      throw new Error('Expected a DeepSeek Harness session header with version 1–4');
+    if (header.type !== 'session' || ![0, 1, 2, 3, 4].includes(header.version as number))
+      throw new Error('Expected a DeepSeek Harness session header with version 0–4');
     const rows = Array.isArray(parsed) ? parsed.slice(1) : root?.type === 'session' ? [] : root?.events;
     if (!Array.isArray(rows)) throw new Error('Missing DeepSeek Harness events');
     const events: EventDraft[] = [];
@@ -25,7 +25,7 @@ export const deepseekAdapter: SessionAdapter = {
     for (const value of rows) {
       const row = object(value);
       if (typeof row.type !== 'string') throw new Error('DeepSeek event is missing type');
-      const time = timestamp(row.time);
+      const time = timestamp(row.time ?? row.time0);
       const data = row.data && typeof row.data === 'object' && !Array.isArray(row.data) ? object(row.data) : {};
       if (row.type === 'session/title' && typeof data.title === 'string' && data.title) title = data.title;
       if (['system/message', 'developer/message', 'user/message', 'human/message', 'assistant/message'].includes(row.type)) {

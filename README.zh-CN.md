@@ -4,7 +4,7 @@
 
 一个用 TypeScript 实现的本地 Agent 会话库。通过独立 adapter 将不同 Agent 的会话转换为统一的 **JSONL 事件流**，在 CLI 查看历史，并在本地文件库之间合并同步。无需服务端或数据库，MIT 开源。
 
-MVP 支持 DeepSeek Harness 原生会话日志 / Web 导出 ZIP、通用 JSON / JSONL、Markdown 会话、TypeScript SDK 和外部 ESM adapter 插件。需要 **Node.js 24+**。
+MVP 支持 DeepSeek Harness 原生 JSONL / Zstandard 会话日志、会话目录和导出 ZIP、通用 JSON / JSONL、Markdown 会话、TypeScript SDK 和外部 ESM adapter 插件。需要 **Node.js 24+**。
 
 ## 快速开始
 
@@ -57,6 +57,7 @@ agent-session show <会话ID前缀>
 ```sh
 agent-session --library ./my-library import session.json --adapter json
 agent-session import session.v4.jsonl --adapter deepseek-harness
+agent-session import session.v4.jsonl.zstd
 agent-session import dsh-session-example.zip
 agent-session list --adapter deepseek-harness --query README
 agent-session list --json
@@ -75,13 +76,37 @@ agent-session adapters
 
 | Adapter | 支持内容 |
 | --- | --- |
-| `deepseek-harness` | `session[.vN].jsonl`、`{header, events}` JSON、Web 导出 ZIP；读取 1–4 版本 header |
+| `deepseek-harness` | 原生 `session[.vN].jsonl[.zstd]`、`{header, events}` JSON、会话目录或导出 ZIP；读取 0–4 版本 header |
 | `json` | 消息数组、`{title, messages}`、`{events}`、单条消息、JSONL；消息需要 `role` 和 `content` |
 | `markdown` | 使用 `## User`、`## Assistant`、`## System`、`## Developer`、`## Tool` 标题分隔的文本，也支持 `Human` |
 
 优先自动识别 DeepSeek，再匹配通用 JSON。Markdown 代码围栏中的角色标题不会被误切分，消息首尾空白会被裁剪，序言保存在源 metadata 中。JSON 消息的扩展字段保存在 `raw`。
 
-DeepSeek 实现参考官方原生事件与导出源码，测试覆盖 v4 原生工具消息和 v3 旧工具结果包装。旧版本或未识别的形状保留为 `source.event`，不执行 Harness 迁移引擎。ZIP 的主会话和子会话分别入库；**MVP 不保存附件二进制**，保留原始附件引用并显示提示。不支持直接读取 `.jsonl.zstd`，请使用 Harness 导出日志。默认文件大小及 ZIP 日志解压总大小上限为 64 MiB。更高版本的日志会在写入前报错。
+DeepSeek 实现参考官方原生事件与导出源码，测试覆盖 v4 原生工具消息、v3 旧工具结果包装和 v0 紧凑批次。紧凑 chunk 批次以完整 `source.event` 保留原始数组和 `time0` 时间，不展开为合成消息。其他未识别的形状也保留为 `source.event`，不执行 Harness 迁移引擎。
+
+### 直接导入 DeepSeek Harness 本地数据
+
+不需要导出按钮或导出插件，可以直接读取压缩持久化日志，也可以导入整个会话目录：
+
+```powershell
+# Windows PowerShell：默认本地 DSH 会话目录
+node dist/cli.js import "$env:USERPROFILE\.dsh\sessions"
+node dist/cli.js history
+
+# 导入单个文件，替换为实际文件路径
+node dist/cli.js import "C:\path\to\session.v4.jsonl.zstd"
+```
+
+```sh
+# macOS / Linux；自定义安装请改用配置的持久化根目录
+node dist/cli.js import "$HOME/.dsh/sessions"
+```
+
+目录导入会递归发现 `session[.vN].jsonl[.zstd]`，在每个会话目录中选择最高版本；同版本同时存在压缩和未压缩文件时，优先压缩文件。无关文件会被忽略，不遍历符号链接目录。旧版本仍可通过指定文件路径单独导入。遇到错误会停止目录导入，保留此前成功的会话，重新运行会自动去重。
+
+DSH 压缩日志是多个独立 Zstandard 帧的拼接：一个 header 帧，后续每个 append 批次一个帧。实现按帧头和 block 长度定位边界，调用 Node 自带 `zlib.zstdDecompressSync` **逐帧解压全部数据**，没有新增压缩依赖。受影响的 Node 版本对整个拼接文件只调用一次可能仅返回第一帧。标准可跳过帧会被跳过，尾帧截断、格式损坏和校验失败会明确报错，不会静默保存只有 header 或部分历史的会话。每个文件完整解码、转换后才写入；相同日志的压缩与未压缩形式具有相同 ID。
+
+ZIP 的主会话和子会话分别入库，读取其中未压缩日志。**MVP 不保存附件二进制**，保留原始附件引用，ZIP 导入会显示提示。输入文件、Zstandard 解压后的文本，以及 ZIP 日志解压总大小分别默认限制为 64 MiB，SDK 可通过 `maxBytes` 调整；目录导入按每个选中文件计算上限。更高版本日志会在对应文件或 ZIP 写入前报错。
 
 ## 统一 Schema 与存储
 

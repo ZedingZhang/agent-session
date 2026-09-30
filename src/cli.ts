@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { writeFile } from 'node:fs/promises';
+import { stat, writeFile } from 'node:fs/promises';
 import { AdapterRegistry } from './adapters/registry.js';
 import { textContent } from './adapters/utils.js';
-import { importFile } from './importer.js';
+import { importDshDirectory, importFile } from './importer.js';
 import { LocalSessionStore } from './store.js';
 import { serialize } from './schema.js';
 import type { SessionEvent, SessionMetadata } from './schema.js';
 
-const program = new Command().name('agent-session').version('0.1.0')
+const program = new Command().name('agent-session').version('0.2.0')
   .description('Archive AI agent sessions locally as unified JSONL events')
   .option('--library <directory>', 'Local file library (or AGENT_SESSION_HOME)')
   .option('--plugin <module>', 'Load a trusted adapter package or ESM file', (value, previous: string[]) => [...previous, value], []);
@@ -36,10 +36,11 @@ program.command('init').description('Create a local library').action(async () =>
 program.command('adapters').description('List built-in and loaded adapters').action(async () => {
   for (const adapter of (await registry()).list()) console.log(`${adapter.id}\t${adapter.version}\t${adapter.description}`);
 });
-program.command('import <file>').description('Import JSON/JSONL, Markdown or a DeepSeek export ZIP')
+program.command('import <path>').description('Import a file or recursively import a native DSH session directory')
   .option('-a, --adapter <id>', 'Select an adapter explicitly').option('--title <title>', 'Override session title')
   .action(async (file, options) => {
-    const result = await importFile(store(), await registry(), file, options);
+    const isDirectory = (await stat(file)).isDirectory();
+    const result = await (isDirectory ? importDshDirectory : importFile)(store(), await registry(), file, options);
     for (const session of result.sessions) console.log(`${session.status}\t${session.id}`);
     for (const warning of result.warnings) console.error(`Warning: ${warning}`);
   });

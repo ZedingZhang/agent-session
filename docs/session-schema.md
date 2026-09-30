@@ -36,7 +36,7 @@ Normalized events represent an archive of source records. `raw` preserves full s
 4. Add `schemaVersion: 1`, contiguous `seq`, `sessionId`, and `eventId` to each draft.
 5. Store canonical JSON per line, ending in a newline, as `sessions/<sessionId>.jsonl`.
 
-`source.sha256` hashes the original source text provided by the adapter. The identity includes this digest, title and adapter version, so normalization changes remain separate snapshots. Native canonical import bypasses adapters and keeps existing identity.
+`source.sha256` hashes the source text provided by the adapter, after decompression for `.jsonl.zstd`. The compression container is not part of identity. A `.zstd` suffix is removed from the fallback filename title, so compressed and plain versions of an identical log deduplicate. The identity includes this digest, title and adapter version, so normalization changes remain separate snapshots. Native canonical import bypasses adapters and keeps existing identity.
 
 The runtime validator checks every event, exact sequence order, header placement, identities, filename consistency and the full draft digest. A content hash detects corruption; it does not authenticate the author. The generated JSON Schema covers individual event structure; it cannot enforce cross-event invariants.
 
@@ -46,4 +46,4 @@ Breaking normalized structure or semantics requires a new `schemaVersion`. Reade
 
 ## Deliberate MVP tradeoffs
 
-Snapshots are immutable rather than live append targets. File scanning rebuilds history on each invocation, avoiding an authoritative index; it is intended for small personal libraries. ZIP imports materialize bounded log text in memory. Sync preflights all archives, then performs independent atomic file publications; it is retryable but not a multi-file transaction. There is no deletion propagation or mutable title editing.
+Snapshots are immutable rather than live append targets. File scanning rebuilds history on each invocation, avoiding an authoritative index; it is intended for small personal libraries. ZIP and concatenated Zstandard imports materialize bounded log text in memory. Zstandard frames are located structurally according to [RFC 8878](https://www.rfc-editor.org/rfc/rfc8878.html), decoded individually with Node's native decoder, and joined before UTF-8 decoding and JSONL parsing. Truncated frames fail rather than triggering silent partial-history recovery. Legacy compact batches are retained as raw `source.event` rows, without expansion. Directory import selects the newest generation per session folder and processes files sequentially; earlier imports remain if a later file fails. Sync preflights all archives, then performs independent atomic file publications; it is retryable but not a multi-file transaction. There is no deletion propagation or mutable title editing.
