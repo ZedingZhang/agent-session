@@ -1,4 +1,4 @@
-# ctxcrate
+# CTXcrate
 
 [English](README.md)
 
