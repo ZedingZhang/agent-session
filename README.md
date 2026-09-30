@@ -8,6 +8,29 @@ A local-first archive for AI agent conversations. Import different agent formats
 
 ## Quick start
 
+### Windows PowerShell
+
+Use `npm.cmd` so PowerShell does not select the `npm.ps1` shim, which may be blocked by the script execution policy. No execution-policy change is needed. The commands below run the CLI directly, so `npm link` is optional.
+
+```powershell
+git clone https://github.com/ZedingZhang/agent-session.git
+cd agent-session
+npm.cmd ci
+npm.cmd --silent run build
+
+node dist/cli.js init
+node dist/cli.js import examples/conversation.md
+node dist/cli.js import examples/conversation.json
+node dist/cli.js import examples/deepseek-session.jsonl
+node dist/cli.js history
+```
+
+Copy an ID prefix from history and run `node dist/cli.js show YOUR_ID_PREFIX`, replacing `YOUR_ID_PREFIX` with that value. If the repository is already on disk, start in its directory and skip `git clone`.
+
+The silent build suppresses npm's script banners; a successful build normally prints nothing. Wait for the PowerShell prompt to return before entering the next command. `$LASTEXITCODE` should be `0`. If you prefer a linked CLI, run `npm.cmd link`, then use `agent-session.cmd` in PowerShell to avoid its `.ps1` shim too.
+
+### macOS / Linux
+
 ```sh
 git clone https://github.com/ZedingZhang/agent-session.git
 cd agent-session
@@ -24,6 +47,10 @@ agent-session show <session-id-prefix>
 ```
 
 The npm package is not published yet; install from this repository. You can use `node dist/cli.js` instead of `npm link` and `agent-session`.
+
+### Terminal output troubleshooting
+
+If build output overlaps the next prompt or typed command, use `npm.cmd --silent run build` in PowerShell (or `npm --silent run build` on macOS/Linux). This suppresses npm's lifecycle banners without hiding TypeScript compiler errors. This repository disables npm color/progress output and TypeScript pretty diagnostics to reduce terminal formatting. If the display still overlaps, try the same command in a fresh standalone PowerShell window to distinguish terminal rendering from the build itself. The overlap has not been reproduced in our terminal; these settings are a workaround, not a confirmed terminal-specific fix.
 
 ## CLI
 
@@ -108,6 +135,17 @@ await library.sync('./another-library');
 Build output includes TypeScript declarations. Runtime schemas and normalization utilities are exported as well.
 
 ## Development
+
+In Windows PowerShell:
+
+```powershell
+npm.cmd ci
+npm.cmd run check
+npm.cmd run schema
+npm.cmd pack --dry-run
+```
+
+On macOS/Linux:
 
 ```sh
 npm ci

@@ -8,6 +8,29 @@ MVP 支持 DeepSeek Harness 原生会话日志 / Web 导出 ZIP、通用 JSON / 
 
 ## 快速开始
 
+### Windows PowerShell
+
+使用 `npm.cmd`，避免 PowerShell 选择可能被脚本执行策略拦截的 `npm.ps1`。无需修改系统执行策略。下面直接用 `node` 运行 CLI，不需要先执行 `npm link`。
+
+```powershell
+git clone https://github.com/ZedingZhang/agent-session.git
+cd agent-session
+npm.cmd ci
+npm.cmd --silent run build
+
+node dist/cli.js init
+node dist/cli.js import examples/conversation.md
+node dist/cli.js import examples/conversation.json
+node dist/cli.js import examples/deepseek-session.jsonl
+node dist/cli.js history
+```
+
+从历史列表复制 ID 前缀，再执行 `node dist/cli.js show YOUR_ID_PREFIX`，将 `YOUR_ID_PREFIX` 替换为实际值。已有本地仓库时，进入仓库目录并跳过 `git clone`。
+
+静默构建会省略 npm 的脚本标题，成功时通常没有输出。等 PowerShell 提示符返回后再输入下一条命令；`$LASTEXITCODE` 应为 `0`。如果希望注册 CLI，可执行 `npm.cmd link`，然后在 PowerShell 使用 `agent-session.cmd`，同样避开其 `.ps1` 启动脚本。
+
+### macOS / Linux
+
 ```sh
 git clone https://github.com/ZedingZhang/agent-session.git
 cd agent-session
@@ -24,6 +47,10 @@ agent-session show <会话ID前缀>
 ```
 
 暂未发布 npm 包，通过源码安装；也可以将 `agent-session` 替换为 `node dist/cli.js`。
+
+### 终端输出重叠
+
+如果构建输出与下一行提示符或输入的命令重叠，PowerShell 可使用 `npm.cmd --silent run build`；macOS/Linux 对应 `npm --silent run build`。这会省略 npm 的脚本标题，TypeScript 编译错误仍会显示。项目同时关闭 npm 的颜色/进度显示和 TypeScript 的格式化诊断，减少终端格式控制。如果仍然重叠，可在新的独立 PowerShell 窗口运行同一命令，对比终端渲染与构建行为。目前未在我们的终端复现重叠现象，这些设置属于绕过方式，尚不能认定修复了特定终端的渲染问题。
 
 ## 常用命令
 
@@ -83,6 +110,17 @@ agent-session --plugin ./examples/custom-adapter.mjs import notes.txt --adapter 
 插件会在 Node 进程执行，仅加载信任的插件。参考 [Adapter 开发指南](docs/adapters.md)、[示例插件](examples/custom-adapter.mjs) 和 [贡献指南](CONTRIBUTING.md)。SDK 导出运行时校验 Schema、registry、导入与文件库存储接口。
 
 ## 开发验证
+
+Windows PowerShell：
+
+```powershell
+npm.cmd ci
+npm.cmd run check
+npm.cmd run schema
+npm.cmd pack --dry-run
+```
+
+macOS/Linux：
 
 ```sh
 npm ci
