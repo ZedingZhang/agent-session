@@ -6,7 +6,7 @@ Adapter ID: `codex`. Adapter version: `1.0.0`. No Codex installation, login, API
 
 Single files must be JSONL starting with `session_meta` and a nonempty `payload.id` (or legacy `payload.session_id`). UTF-8 BOM and blank lines are accepted. JSON parse errors include the physical line number; malformed/truncated files fail before publication. The normal 64 MiB per-file import limit applies.
 
-Recursive directory import selects `rollout-*.jsonl`, including dated `sessions` and `archived_sessions` trees. Pass the actual configured `CODEX_HOME`, its session folder, or an individual log path. Symlink directories are not followed. Index/history/config/auth files are not selected. Native DSH and Codex directories can also be discovered automatically without `--adapter`; an explicit adapter restricts discovery.
+Recursive directory import selects `rollout-*.jsonl`, including dated `sessions` and `archived_sessions` trees. When a directory contains either native history tree, Codex discovery stays inside those trees, excluding plugin/cache fixtures. Pass the actual configured `CODEX_HOME`, its session folder, or an individual log path. Symlink directories are not followed. Index/history/config/auth files are not selected. Native DSH and Codex directories can also be discovered automatically without `--adapter`; an explicit adapter restricts discovery.
 
 ```powershell
 node dist/cli.js import "$env:USERPROFILE\.codex" --adapter codex

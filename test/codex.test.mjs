@@ -95,6 +95,8 @@ test('directory discovery imports active/archive rollouts, skips indexes and sup
   await writeFile(join(archived, 'rollout-copy.jsonl'), content);
   await writeFile(join(root, 'history.jsonl'), '{bad-index');
   await writeFile(join(root, 'session_index.jsonl'), '{bad-index');
+  await mkdir(join(root, 'plugins'));
+  await writeFile(join(root, 'plugins', 'rollout-not-history.jsonl'), '{invalid-plugin-fixture');
   const store = new LocalSessionStore(join(root, 'library')), registry = new AdapterRegistry();
   assert.equal((await discoverCodexLogs(root)).length, 2);
   const result = await importSessionDirectory(store, registry, root, { adapter: 'codex' });

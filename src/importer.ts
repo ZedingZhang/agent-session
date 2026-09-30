@@ -109,11 +109,18 @@ export async function importDshDirectory(store: LocalSessionStore, registry: Ada
 /** Discover only native rollout files; history.jsonl and session_index.jsonl are not transcripts. */
 export async function discoverCodexLogs(directory: string): Promise<string[]> {
   const files: string[] = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...await discoverCodexLogs(path));
-    else if (entry.isFile() && /^rollout-.+\.jsonl$/.test(entry.name)) files.push(path);
-  }
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nativeRoots = entries.filter(e => e.isDirectory() && ['sessions', 'archived_sessions'].includes(e.name));
+  const walk = async (path: string): Promise<void> => {
+    for (const entry of await readdir(path, { withFileTypes: true })) {
+      const child = join(path, entry.name);
+      if (entry.isDirectory()) await walk(child);
+      else if (entry.isFile() && /^rollout-.+\.jsonl$/.test(entry.name)) files.push(child);
+    }
+  };
+  // A Codex home can contain plugin caches and fixtures: only scan its native history trees.
+  if (nativeRoots.length) for (const root of nativeRoots) await walk(join(directory, root.name));
+  else await walk(directory);
   return files.sort();
 }
 
