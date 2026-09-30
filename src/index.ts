@@ -2,6 +2,7 @@ export * from './schema.js';
 export * from './store.js';
 export * from './importer.js';
 export * from './zstd.js';
+export * from './timeline.js';
 export * from './adapters/types.js';
 export * from './adapters/registry.js';
 export { deepseekAdapter } from './adapters/deepseek.js';

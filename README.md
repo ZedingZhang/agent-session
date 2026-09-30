@@ -4,7 +4,7 @@
 
 A local-first archive for AI agent conversations. Import different agent formats into one versioned **JSONL event stream**, browse history from the CLI, and merge file libraries without a server or database. Each source format lives in a small adapter that the community can extend.
 
-**MVP:** DeepSeek Harness native JSONL / Zstandard session logs and session directories, export ZIPs, generic JSON/JSONL, Markdown transcripts, a TypeScript SDK, and external ESM adapters. MIT licensed. Requires Node.js **24+**.
+**MVP:** DeepSeek Harness native JSONL / Zstandard session logs and session directories, export ZIPs, generic JSON/JSONL, Markdown transcripts, CLI timelines and timed playback, a TypeScript SDK, and external ESM adapters. MIT licensed. Requires Node.js **24+**.
 
 ## Quick start
 
@@ -63,15 +63,52 @@ agent-session import dsh-session-example.zip
 agent-session list --adapter deepseek-harness --query README
 agent-session list --json
 agent-session show <id> --all
+agent-session show <id> --replay --speed 4
+agent-session show <id> --verbose --timezone UTC
 agent-session show <id> --json
 agent-session export <id> --output session.jsonl
 agent-session --library ./my-library sync ./another-library
 agent-session adapters
 ```
 
-`history` aliases `list`. IDs accept unambiguous lowercase hexadecimal prefixes of at least eight characters. `show` displays messages and tools by default; `--all` includes original lifecycle and unknown events. `--json` on `show` emits JSONL; on `list` it emits a JSON array. Export to a file refuses to overwrite existing files.
+`history` aliases `list`. IDs accept unambiguous lowercase hexadecimal prefixes of at least eight characters. `show` displays a readable timeline of messages, tools, shell commands, results and recorded diffs by default; `--all` includes original lifecycle and unknown events. `--json` on `show` emits the unchanged JSONL archive; on `list` it emits a JSON array. Export to a file refuses to overwrite existing files.
 
 The default library is `~/.agent-session`. Override it with `AGENT_SESSION_HOME` or `--library`. The CLI does not contact agent APIs or upload conversations.
+
+## Session timelines and playback
+
+`show <id>` prints the session process immediately, in archive sequence order. It links tool results to calls by `callId`, understands DSH result metadata, and reports recorded shell exit failures even when DSH's `isError` is false. Existing imported sessions work without re-importing; this is a display projection, not a new archive schema.
+
+Try the fictional login-repair fixture in PowerShell:
+
+```powershell
+node dist/cli.js import examples/login-replay.jsonl
+node dist/cli.js history --query "修复登录跳转问题"
+# Replace YOUR_ID_PREFIX with the ID from history
+node dist/cli.js show YOUR_ID_PREFIX --timezone Asia/Singapore
+node dist/cli.js show YOUR_ID_PREFIX --replay --speed 4
+```
+
+```text
+[10:00:01] User: 帮我修复登录跳转问题
+[10:00:03] Agent: 我先查看认证逻辑
+[10:00:04] Tool: read_file src/auth/login.ts
+[10:00:06] Tool result: 245 lines
+[10:00:10] Tool: write_file src/auth/login.ts
+[10:00:11] Tool result: Updated file
+[10:00:11] Diff: src/auth/login.ts
+- redirect('/login')
++ redirect('/dashboard')
+[10:00:15] Shell: npm test
+[10:00:21] Test failed: Expected /dashboard but received /login
+[exit code: 1]
+```
+
+`--replay` displays those same entries one by one, using recorded time gaps divided by `--speed` (default `1`). Each pause is capped by `--max-delay` seconds (default `2`); use `--max-delay 0` for immediate playback. Ctrl+C stops playback. Playback displays recorded events; it does not execute shell commands or apply file changes.
+
+Times use the system timezone by default. `--timezone UTC` or an IANA zone such as `Asia/Singapore` overrides it; sessions spanning multiple dates include the date in each timestamp. Missing timestamps show `[unknown time]`; missing or regressing clocks never reorder events or add a playback pause.
+
+Tool output is summarized by default, with read line counts from recorded metadata and excerpts for long failures. `--verbose` displays full tool arguments, results and diffs. Diffs use recorded applied `meta.diffs`, explicit before/after data or an explicit result patch; no before-state is inferred from tool arguments or the current filesystem. A missing diff remains missing. A recognized test command with a nonzero recorded exit code is labeled `Test failed`; when no code is available, explicit failure diagnostics are used. See [replay behavior](docs/replay.md) for exact rules and limitations.
 
 ## Input formats
 
@@ -157,6 +194,8 @@ await library.sync('./another-library');
 
 Build output includes TypeScript declarations. Runtime schemas and normalization utilities are exported as well.
 
+The SDK also exports `projectTimeline(events)`, `formatTimelineEntry(entry, {timeZone})`, `timelineSpansDays(entries, timeZone)`, and the async iterator `replayTimeline(entries, {speed, maxDelayMs, signal})`. Projection leaves archive data and identities untouched.
+
 ## Development
 
 In Windows PowerShell:
@@ -177,6 +216,6 @@ npm run schema
 npm pack --dry-run
 ```
 
-Tests cover adapter normalization, unknown event retention, fenced Markdown, hash/sequence validation, concurrent publication, deduplication, export/re-import, sync corruption checks, ZIP size limits, plugin loading and actual CLI workflows. Zstandard regressions cover thousands of append frames, raw/RLE/multi-block frames, skippable metadata, unknown content sizes, checksums, truncated tails, output limits, legacy compact rows and directory generation selection. CI runs checks on Linux, macOS and Windows with Node 24 and 26, and verifies that the committed JSON Schema is current.
+Tests cover adapter normalization, unknown event retention, fenced Markdown, hash/sequence validation, concurrent publication, deduplication, export/re-import, sync corruption checks, ZIP size limits, plugin loading and actual CLI workflows. Zstandard regressions cover thousands of append frames, raw/RLE/multi-block frames, skippable metadata, unknown content sizes, checksums, truncated tails, output limits, legacy compact rows and directory generation selection. Timeline tests cover recorded diffs, interleaved calls, test failures, missing clocks, timezone/date formatting, output excerpts, terminal escape removal and bounded/cancellable playback. CI runs checks on Linux, macOS and Windows with Node 24 and 26, and verifies that the committed JSON Schema is current.
 
 Future work: live incremental ingestion, searchable derived indexes, attachment storage, more community adapters, and session lineage browsing. MVP history is a chronological source archive; fork seeds and source `surfaceOp` edits are retained as raw metadata, not replayed into a reconstructed agent runtime view.

@@ -4,7 +4,7 @@
 
 一个用 TypeScript 实现的本地 Agent 会话库。通过独立 adapter 将不同 Agent 的会话转换为统一的 **JSONL 事件流**，在 CLI 查看历史，并在本地文件库之间合并同步。无需服务端或数据库，MIT 开源。
 
-MVP 支持 DeepSeek Harness 原生 JSONL / Zstandard 会话日志、会话目录和导出 ZIP、通用 JSON / JSONL、Markdown 会话、TypeScript SDK 和外部 ESM adapter 插件。需要 **Node.js 24+**。
+MVP 支持 DeepSeek Harness 原生 JSONL / Zstandard 会话日志、会话目录和导出 ZIP、通用 JSON / JSONL、Markdown 会话、CLI 时间线与定时回放、TypeScript SDK 和外部 ESM adapter 插件。需要 **Node.js 24+**。
 
 ## 快速开始
 
@@ -62,15 +62,52 @@ agent-session import dsh-session-example.zip
 agent-session list --adapter deepseek-harness --query README
 agent-session list --json
 agent-session show <id> --all
+agent-session show <id> --replay --speed 4
+agent-session show <id> --verbose --timezone UTC
 agent-session show <id> --json
 agent-session export <id> --output session.jsonl
 agent-session --library ./my-library sync ./other-library
 agent-session adapters
 ```
 
-`history` 是 `list` 的别名。会话 ID 支持至少 8 位、无歧义的小写十六进制前缀。默认显示消息和工具事件，`--all` 还显示源生命周期与未知事件。`show --json` 输出 JSONL，`list --json` 输出 JSON 数组。导出文件拒绝覆盖已有文件。
+`history` 是 `list` 的别名。会话 ID 支持至少 8 位、无歧义的小写十六进制前缀。`show` 默认显示可读时间线，包含消息、工具、Shell 命令、结果和已记录的 diff；`--all` 还显示源生命周期与未知事件。`show --json` 输出原始统一 JSONL，`list --json` 输出 JSON 数组。导出文件拒绝覆盖已有文件。
 
 默认库目录为 `~/.agent-session`，可用 `AGENT_SESSION_HOME` 环境变量或 `--library` 更改。CLI 不调用 Agent API，也不上传会话。
+
+## 会话过程展示与回放
+
+`show <id>` 会立即按归档顺序打印会话过程，通过 `callId` 关联工具调用和结果，并读取 DSH 的结果 metadata。Shell 即便记录为 `isError: false`，仍会识别输出中的非零退出码。已有导入会话可直接使用，无需重新导入；此功能只增加显示投影，未改变存储 Schema。
+
+可以用虚构的登录修复示例体验：
+
+```powershell
+node dist/cli.js import examples/login-replay.jsonl
+node dist/cli.js history --query "修复登录跳转问题"
+# 将 YOUR_ID_PREFIX 替换为历史列表里的 ID
+node dist/cli.js show YOUR_ID_PREFIX --timezone Asia/Singapore
+node dist/cli.js show YOUR_ID_PREFIX --replay --speed 4
+```
+
+```text
+[10:00:01] User: 帮我修复登录跳转问题
+[10:00:03] Agent: 我先查看认证逻辑
+[10:00:04] Tool: read_file src/auth/login.ts
+[10:00:06] Tool result: 245 lines
+[10:00:10] Tool: write_file src/auth/login.ts
+[10:00:11] Tool result: Updated file
+[10:00:11] Diff: src/auth/login.ts
+- redirect('/login')
++ redirect('/dashboard')
+[10:00:15] Shell: npm test
+[10:00:21] Test failed: Expected /dashboard but received /login
+[exit code: 1]
+```
+
+`--replay` 会按原始时间间隔逐条输出，相邻间隔除以 `--speed`（默认 `1`）。每次等待最多 `--max-delay` 秒（默认 `2`），设为 `0` 可立即播放；Ctrl+C 停止。回放展示记录，不执行 Shell 命令，也不应用文件修改。
+
+默认使用系统时区，可通过 `--timezone Asia/Singapore` 或 `--timezone UTC` 指定。会话跨越多天时，时间戳自动包含日期。缺少时间显示 `[unknown time]`，缺失或倒退的时间戳不会改变事件顺序，也不会增加等待。
+
+工具输出默认摘要显示：读文件行数来自记录的 metadata，较长失败输出优先展示诊断片段。`--verbose` 显示完整工具参数、结果和 diff。Diff 只使用已记录的 `meta.diffs`、明确的 before/after 或结果 patch，不根据调用参数或当前文件内容猜测旧状态。缺少修改数据时不会合成 diff。已识别的测试命令返回非零记录退出码时显示 `Test failed`；没有退出码时依据明确的失败诊断识别。具体规则与限制见 [回放说明](docs/replay.md)。
 
 ## 输入格式
 
@@ -132,7 +169,7 @@ ZIP 的主会话和子会话分别入库，读取其中未压缩日志。**MVP �
 agent-session --plugin ./examples/custom-adapter.mjs import notes.txt --adapter notes
 ```
 
-插件会在 Node 进程执行，仅加载信任的插件。参考 [Adapter 开发指南](docs/adapters.md)、[示例插件](examples/custom-adapter.mjs) 和 [贡献指南](CONTRIBUTING.md)。SDK 导出运行时校验 Schema、registry、导入与文件库存储接口。
+插件会在 Node 进程执行，仅加载信任的插件。参考 [Adapter 开发指南](docs/adapters.md)、[示例插件](examples/custom-adapter.mjs) 和 [贡献指南](CONTRIBUTING.md)。SDK 导出运行时校验 Schema、registry、导入与文件库存储接口，以及 `projectTimeline`、`formatTimelineEntry`、`timelineSpansDays` 和异步 `replayTimeline`。
 
 ## 开发验证
 

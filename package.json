@@ -1,11 +1,28 @@
 {
   "name": "@zedings/agent-session",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Local-first AI agent session archive with a unified JSONL schema and pluggable adapters",
-  "engines": { "node": ">=24" },
-  "bin": { "agent-session": "dist/cli.js" },
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "files": ["dist", "schema", "README.md", "README.zh-CN.md", "LICENSE"],
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "agent-session": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schema",
+    "docs",
+    "examples",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -14,13 +31,24 @@
     "schema": "npm run build && node scripts/schema.mjs",
     "prepack": "npm run build"
   },
-  "keywords": ["agent", "session", "jsonl", "deepseek", "cli", "local-first"],
+  "keywords": [
+    "agent",
+    "session",
+    "jsonl",
+    "deepseek",
+    "cli",
+    "local-first"
+  ],
   "author": "Zeding Zhang",
   "license": "MIT",
   "type": "module",
-  "repository": { "type": "git", "url": "git+https://github.com/ZedingZhang/agent-session.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZedingZhang/agent-session.git"
+  },
   "dependencies": {
     "commander": "^15.0.0",
+    "diff": "^9.0.0",
     "fflate": "^0.8.3",
     "zod": "^4.6.5"
   },

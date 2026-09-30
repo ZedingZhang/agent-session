@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 import { stat, writeFile } from 'node:fs/promises';
 import { AdapterRegistry } from './adapters/registry.js';
-import { textContent } from './adapters/utils.js';
 import { importDshDirectory, importFile } from './importer.js';
 import { LocalSessionStore } from './store.js';
 import { serialize } from './schema.js';
-import type { SessionEvent, SessionMetadata } from './schema.js';
+import type { SessionMetadata } from './schema.js';
+import { projectTimeline, formatTimelineEntry, timelineSpansDays, replayTimeline, sanitizeTerminal } from './timeline.js';
 
-const program = new Command().name('agent-session').version('0.2.0')
+const program = new Command().name('agent-session').version('0.3.0')
   .description('Archive AI agent sessions locally as unified JSONL events')
   .option('--library <directory>', 'Local file library (or AGENT_SESSION_HOME)')
   .option('--plugin <module>', 'Load a trusted adapter package or ESM file', (value, previous: string[]) => [...previous, value], []);
@@ -19,16 +19,11 @@ async function registry() {
   return result;
 }
 // Prevent terminal control sequences in imported text from manipulating the viewer.
-const safe = (text: string) => text.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
-function render(event: SessionEvent): string {
-  const prefix = `[${event.seq}] ${event.timestamp ?? 'unknown time'}`;
-  switch (event.type) {
-    case 'message': return `${prefix} ${event.data.role}\n${textContent(event.data.content)}`;
-    case 'tool.call': return `${prefix} tool.call ${event.data.name} (${event.data.callId})\n${textContent(event.data.arguments)}`;
-    case 'tool.result': return `${prefix} tool.result (${event.data.callId})${event.data.isError ? ' ERROR' : ''}\n${textContent(event.data.content)}`;
-    case 'source.event': return `${prefix} ${event.data.sourceType}\n${JSON.stringify(event.data.raw)}`;
-    default: return '';
-  }
+const safe = sanitizeTerminal;
+function numeric(value: string, positive = true): number {
+  const number = Number(value);
+  if (!Number.isFinite(number) || (positive ? number <= 0 : number < 0)) throw new InvalidArgumentError(positive ? 'Expected a finite positive number' : 'Expected a finite nonnegative number');
+  return number;
 }
 program.command('init').description('Create a local library').action(async () => {
   await store().init(); console.log(`Library: ${store().root}`);
@@ -53,14 +48,27 @@ program.command('list').alias('history').description('List archived sessions')
     else if (!sessions.length) console.log('No sessions. Use agent-session import <file>.');
     else for (const s of sessions) console.log(safe(`${s.id.slice(0, 12)}\t${s.adapter}\t${s.messageCount} messages\t${s.lastTimestamp ?? 'unknown time'}\t${s.title}`));
   });
-program.command('show <id>').description('View a session by full ID or unambiguous prefix (8+ characters)')
+program.command('show <id>').description('Display a session timeline by full ID or unambiguous prefix (8+ characters)')
   .option('--json', 'Print the canonical JSONL event stream')
-  .option('--all', 'Include source lifecycle and unknown events').action(async (id, options) => {
+  .option('--all', 'Include source lifecycle and unknown events')
+  .option('--verbose', 'Print complete tool arguments, results and diffs')
+  .option('--timezone <zone>', 'Display timezone, e.g. Asia/Singapore or UTC (default: system timezone)')
+  .option('--replay', 'Play recorded events with timing; no commands are executed')
+  .option('--speed <factor>', 'Playback speed multiplier', value => numeric(value), 1)
+  .option('--max-delay <seconds>', 'Maximum pause between playback entries', value => numeric(value, false), 2)
+  .action(async (id, options) => {
+    if (options.json && options.replay) throw new Error('--json and --replay cannot be combined');
     const events = await store().read(id);
     if (options.json) { process.stdout.write(serialize(events)); return; }
+    const timeZone = new Intl.DateTimeFormat('en', { timeZone: options.timezone }).resolvedOptions().timeZone;
+    const entries = projectTimeline(events, options);
+    const formatOptions = { timeZone, includeDate: timelineSpansDays(entries, timeZone) };
     const metadata = events[0]!.data as SessionMetadata;
-    console.log(safe(`${metadata.title}\n${events[0]!.sessionId}\nAdapter: ${metadata.adapter.id}\n`));
-    for (const event of events.slice(1)) if (options.all || event.type !== 'source.event') console.log(safe(render(event)) + '\n');
+    console.log(safe(`${metadata.title}\n${events[0]!.sessionId}\nAdapter: ${metadata.adapter.id}\nTimezone: ${timeZone}\n`));
+    if (!entries.length) { console.log('No visible events. Use --all to include source events.'); return; }
+    if (options.replay) {
+      for await (const entry of replayTimeline(entries, { speed: options.speed, maxDelayMs: options.maxDelay * 1000 })) console.log(formatTimelineEntry(entry, formatOptions));
+    } else for (const entry of entries) console.log(formatTimelineEntry(entry, formatOptions));
   });
 program.command('export <id>').description('Export a canonical JSONL archive')
   .option('-o, --output <file>', 'Write a new file (never overwrite)').action(async (id, options) => {
