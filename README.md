@@ -67,6 +67,8 @@ agent-session show <id> --replay --speed 4
 agent-session show <id> --verbose --timezone UTC
 agent-session show <id> --json
 agent-session export <id> --output session.jsonl
+agent-session export <id> --format markdown --output session.md
+agent-session export <id> --format json --output session.json
 agent-session --library ./my-library sync ./another-library
 agent-session adapters
 ```
@@ -74,6 +76,31 @@ agent-session adapters
 `history` aliases `list`. IDs accept unambiguous lowercase hexadecimal prefixes of at least eight characters. `show` displays a readable timeline of messages, tools, shell commands, results and recorded diffs by default; `--all` includes original lifecycle and unknown events. `--json` on `show` emits the unchanged JSONL archive; on `list` it emits a JSON array. Export to a file refuses to overwrite existing files.
 
 The default library is `~/.agent-session`. Override it with `AGENT_SESSION_HOME` or `--library`. The CLI does not contact agent APIs or upload conversations.
+
+## Export a selected session
+
+Find a session with `history` (optionally `--query <title>`) and pass its full ID or unambiguous prefix to `export`:
+
+```powershell
+node dist/cli.js history
+# Replace YOUR_SESSION_ID with the selected ID or prefix
+node dist/cli.js export YOUR_SESSION_ID --format markdown --output session.md
+node dist/cli.js export YOUR_SESSION_ID --format json --output session.json
+
+# Known file extensions also select the format automatically
+node dist/cli.js export YOUR_SESSION_ID -o session.md --timezone Asia/Singapore
+node dist/cli.js export YOUR_SESSION_ID -o session.json
+```
+
+| Format | Contents | Re-import |
+| --- | --- | --- |
+| `markdown` (alias `md`) | Readable report with session metadata, timestamped messages, complete tool arguments/results and recorded diffs | A display report; use JSON/JSONL for archive restoration |
+| `json` | One formatted JSON document with `format`, `schemaVersion`, `sessionId`, `metadata` and every original `events` record | Lossless; validates and preserves the original session ID |
+| `jsonl` | Original normalized event stream, one object per line | Lossless; existing behavior |
+
+Markdown includes all message/tool content without CLI preview truncation. Add `--all` to include original lifecycle and unknown source events, or `--timezone UTC` to select display times. Content is fenced so embedded Markdown headings, HTML and code fences cannot break the report structure. Terminal control sequences are removed from the readable report; JSON and JSONL preserve raw content. Markdown does not create a missing diff or reconstruct source runtime state.
+
+Explicit `--format` takes precedence over the filename. Without it, `.md` / `.markdown` select Markdown, `.json` selects JSON, and everything else defaults to JSONL. Without `--output`, the selected format is written to stdout. Output files are UTF-8, require an existing parent directory, and never overwrite an existing file. Exported JSON can be imported directly with `agent-session import session.json`; no adapter option is needed. See [export details](docs/exports.md).
 
 ## Session timelines and playback
 
@@ -195,6 +222,8 @@ await library.sync('./another-library');
 Build output includes TypeScript declarations. Runtime schemas and normalization utilities are exported as well.
 
 The SDK also exports `projectTimeline(events)`, `formatTimelineEntry(entry, {timeZone})`, `timelineSpansDays(entries, timeZone)`, and the async iterator `replayTimeline(entries, {speed, maxDelayMs, signal})`. Projection leaves archive data and identities untouched.
+
+Use `exportSession(events, 'markdown' | 'json' | 'jsonl', {timeZone, all})` for export text and `parseSessionJson(text)` to restore a lossless JSON document. The JSON document's runtime validator is exported as `sessionJsonSchema`.
 
 ## Development
 

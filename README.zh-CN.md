@@ -66,6 +66,8 @@ agent-session show <id> --replay --speed 4
 agent-session show <id> --verbose --timezone UTC
 agent-session show <id> --json
 agent-session export <id> --output session.jsonl
+agent-session export <id> --format markdown --output session.md
+agent-session export <id> --format json --output session.json
 agent-session --library ./my-library sync ./other-library
 agent-session adapters
 ```
@@ -73,6 +75,31 @@ agent-session adapters
 `history` 是 `list` 的别名。会话 ID 支持至少 8 位、无歧义的小写十六进制前缀。`show` 默认显示可读时间线，包含消息、工具、Shell 命令、结果和已记录的 diff；`--all` 还显示源生命周期与未知事件。`show --json` 输出原始统一 JSONL，`list --json` 输出 JSON 数组。导出文件拒绝覆盖已有文件。
 
 默认库目录为 `~/.agent-session`，可用 `AGENT_SESSION_HOME` 环境变量或 `--library` 更改。CLI 不调用 Agent API，也不上传会话。
+
+## 导出选定会话
+
+先用 `history` 找到会话，也可以通过 `--query` 按标题过滤，再把完整 ID 或无歧义前缀传给 `export`：
+
+```powershell
+node dist/cli.js history
+# 将 YOUR_SESSION_ID 替换为选中的会话 ID 或前缀
+node dist/cli.js export YOUR_SESSION_ID --format markdown --output session.md
+node dist/cli.js export YOUR_SESSION_ID --format json --output session.json
+
+# 也可以根据文件扩展名自动选择格式
+node dist/cli.js export YOUR_SESSION_ID -o session.md --timezone Asia/Singapore
+node dist/cli.js export YOUR_SESSION_ID -o session.json
+```
+
+| 格式 | 文件内容 | 再导入 |
+| --- | --- | --- |
+| `markdown`，也可写 `md` | 可读报告：会话信息、带时间的消息、完整工具参数与结果、已记录的 diff | 展示报告；恢复归档请使用 JSON / JSONL |
+| `json` | 一个格式化 JSON 文档，包含 `format`、`schemaVersion`、`sessionId`、`metadata` 和所有原始 `events` | 无损，校验并保持原会话 ID |
+| `jsonl` | 原有统一事件流，每行一个 JSON 对象 | 无损，兼容原有行为 |
+
+Markdown 不采用 CLI 的工具输出预览截断，消息和工具内容完整导出。`--all` 可加入源生命周期及未知事件，`--timezone UTC` 可指定显示时区。内容放在代码围栏中，避免原始 Markdown 标题、HTML 或嵌套代码围栏破坏报告结构；可读报告会移除终端控制序列，JSON / JSONL 则保留原始内容。Markdown 不推断缺失 diff，也不重建源运行时上下文。
+
+显式 `--format` 优先于文件扩展名。不指定时，`.md` / `.markdown` 选择 Markdown，`.json` 选择 JSON，其余默认 JSONL。不提供 `--output` 时输出到终端。文件使用 UTF-8，父目录需要已存在，拒绝覆盖已有文件。导出的 JSON 可以直接通过 `agent-session import session.json` 再导入，无需指定 adapter。更多规则见 [导出说明](docs/exports.md)。
 
 ## 会话过程展示与回放
 
@@ -170,6 +197,8 @@ agent-session --plugin ./examples/custom-adapter.mjs import notes.txt --adapter 
 ```
 
 插件会在 Node 进程执行，仅加载信任的插件。参考 [Adapter 开发指南](docs/adapters.md)、[示例插件](examples/custom-adapter.mjs) 和 [贡献指南](CONTRIBUTING.md)。SDK 导出运行时校验 Schema、registry、导入与文件库存储接口，以及 `projectTimeline`、`formatTimelineEntry`、`timelineSpansDays` 和异步 `replayTimeline`。
+
+SDK 的 `exportSession(events, format, {timeZone, all})` 返回 Markdown / JSON / JSONL 文本；`parseSessionJson(text)` 可以恢复无损 JSON 文档，并提供 `sessionJsonSchema` 运行时校验器。
 
 ## 开发验证
 

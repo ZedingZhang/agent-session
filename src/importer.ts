@@ -7,6 +7,7 @@ import type { SessionEvent } from './schema.js';
 import type { AdapterInput } from './adapters/types.js';
 import { LocalSessionStore } from './store.js';
 import { decompressZstdFrames } from './zstd.js';
+import { parseSessionJson } from './exporter.js';
 
 export interface ImportOptions { adapter?: string; title?: string; maxBytes?: number }
 export async function importFile(store: LocalSessionStore, registry: AdapterRegistry, filename: string, options: ImportOptions = {}) {
@@ -37,6 +38,12 @@ export async function importFile(store: LocalSessionStore, registry: AdapterRegi
   }
   const archives: SessionEvent[][] = [];
   for (const input of inputs) {
+    let sessionJson = false;
+    try { sessionJson = JSON.parse(input.content.replace(/^\uFEFF/, '')).format === 'agent-session'; } catch { /* Other input formats. */ }
+    if (sessionJson) {
+      if (options.title || options.adapter) throw new Error('Canonical JSON exports cannot be retitled or re-adapted');
+      archives.push(parseSessionJson(input.content)); continue;
+    }
     // Canonical archives can be re-imported without re-normalization or changed IDs.
     const first = input.content.replace(/^\uFEFF/, '').split(/\r?\n/)[0];
     let canonicalArchive = false;

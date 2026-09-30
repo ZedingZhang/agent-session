@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command, InvalidArgumentError } from 'commander';
+import { Command, InvalidArgumentError, Option } from 'commander';
 import { stat, writeFile } from 'node:fs/promises';
 import { AdapterRegistry } from './adapters/registry.js';
 import { importDshDirectory, importFile } from './importer.js';
@@ -7,8 +7,9 @@ import { LocalSessionStore } from './store.js';
 import { serialize } from './schema.js';
 import type { SessionMetadata } from './schema.js';
 import { projectTimeline, formatTimelineEntry, timelineSpansDays, replayTimeline, sanitizeTerminal } from './timeline.js';
+import { exportSession, resolveExportFormat } from './exporter.js';
 
-const program = new Command().name('agent-session').version('0.3.0')
+const program = new Command().name('agent-session').version('0.4.0')
   .description('Archive AI agent sessions locally as unified JSONL events')
   .option('--library <directory>', 'Local file library (or AGENT_SESSION_HOME)')
   .option('--plugin <module>', 'Load a trusted adapter package or ESM file', (value, previous: string[]) => [...previous, value], []);
@@ -70,9 +71,14 @@ program.command('show <id>').description('Display a session timeline by full ID 
       for await (const entry of replayTimeline(entries, { speed: options.speed, maxDelayMs: options.maxDelay * 1000 })) console.log(formatTimelineEntry(entry, formatOptions));
     } else for (const entry of entries) console.log(formatTimelineEntry(entry, formatOptions));
   });
-program.command('export <id>').description('Export a canonical JSONL archive')
-  .option('-o, --output <file>', 'Write a new file (never overwrite)').action(async (id, options) => {
-    const text = serialize(await store().read(id));
+program.command('export <id>').description('Export a session as Markdown, JSON or JSONL')
+  .addOption(new Option('-f, --format <format>', 'Export format (otherwise inferred from output extension)').choices(['markdown', 'md', 'json', 'jsonl']))
+  .option('-o, --output <file>', 'Write a new file (never overwrite)')
+  .option('--all', 'Include source lifecycle and unknown events in Markdown')
+  .option('--timezone <zone>', 'Markdown display timezone (default: system timezone)')
+  .action(async (id, options) => {
+    const format = resolveExportFormat(options.format, options.output);
+    const text = exportSession(await store().read(id), format, { all: options.all, timeZone: options.timezone });
     if (options.output) await writeFile(options.output, text, { flag: 'wx', mode: 0o600 });
     else process.stdout.write(text);
   });
