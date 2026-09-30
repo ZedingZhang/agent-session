@@ -4,7 +4,7 @@
 
 A local-first archive for AI agent conversations. Import different agent formats into one versioned **JSONL event stream**, browse history from the CLI, and merge file libraries without a server or database. Each source format lives in a small adapter that the community can extend.
 
-**MVP:** DeepSeek Harness native JSONL / Zstandard session logs and session directories, export ZIPs, generic JSON/JSONL, Markdown transcripts, CLI timelines and timed playback, a TypeScript SDK, and external ESM adapters. MIT licensed. Requires Node.js **24+**.
+**MVP:** Codex CLI native rollout JSONL and session directories, DeepSeek Harness native JSONL / Zstandard session logs and session directories, DSH export ZIPs, generic JSON/JSONL, Markdown transcripts, CLI timelines and timed playback, a TypeScript SDK, and external ESM adapters. MIT licensed. Requires Node.js **24+**.
 
 ## Quick start
 
@@ -59,6 +59,8 @@ ctxcrate --help
 ctxcrate --library ./my-library import conversation.json --adapter json
 ctxcrate import session.v4.jsonl --adapter deepseek-harness
 ctxcrate import session.v4.jsonl.zstd
+ctxcrate import examples/codex-rollout.jsonl
+ctxcrate import ~/.codex/sessions --adapter codex
 ctxcrate import dsh-session-example.zip
 ctxcrate list --adapter deepseek-harness --query README
 ctxcrate list --json
@@ -143,11 +145,28 @@ Tool output is summarized by default, with read line counts from recorded metada
 
 | Adapter | Input | Behavior |
 | --- | --- | --- |
+| `codex` | Native `rollout-*.jsonl`, `sessions/`, `archived_sessions/`, or a Codex home directory | Maps messages and function/custom tool calls/results; retains metadata, mirrors and unknown records |
 | `deepseek-harness` | Native `session[.vN].jsonl[.zstd]`, `{ "header": ..., "events": [...] }`, a session directory, or export `.zip` | Reads headers 0–4; normalizes messages and tool events, preserves original rows |
 | `json` | A message array, `{ "title": ..., "messages": [...] }`, `{ "events": [...] }`, a single message, or JSONL rows | `role` + `content` messages; unknown typed events remain `source.event` |
 | `markdown` | `.md` / `.markdown` with role headings | Converts `## User`, `## Assistant`, `## System`, `## Developer`, `## Tool` (also `Human`) into messages |
 
-DeepSeek auto-detection runs before generic JSON detection. Unknown formats fail clearly; choose an adapter explicitly when necessary. Markdown headings inside fenced code are treated as content. Surrounding Markdown message whitespace is trimmed; the preamble is retained in source metadata. Generic JSON accepts strings, structured blocks, or other JSON content and preserves each original message, including tool-call extensions, in `raw`.
+Codex and DeepSeek auto-detection run before generic JSON detection. Unknown formats fail clearly; choose an adapter explicitly when necessary. Markdown headings inside fenced code are treated as content. Surrounding Markdown message whitespace is trimmed; the preamble is retained in source metadata. Generic JSON accepts strings, structured blocks, or other JSON content and preserves each original message, including tool-call extensions, in `raw`.
+
+### Import Codex CLI history
+
+In PowerShell, import the active session tree or the complete Codex home (active and archived rollouts):
+
+```powershell
+node dist/cli.js import "$env:USERPROFILE\.codex\sessions" --adapter codex
+node dist/cli.js import "$env:USERPROFILE\.codex" --adapter codex
+# When CODEX_HOME is configured, pass that directory instead:
+node dist/cli.js import "$env:CODEX_HOME" --adapter codex
+node dist/cli.js history --adapter codex
+node dist/cli.js show YOUR_SESSION_ID --timezone Asia/Singapore
+node dist/cli.js export YOUR_SESSION_ID --format markdown --output codex-session.md
+```
+
+Only `rollout-*.jsonl` files are selected during recursive Codex directory import. `history.jsonl` and `session_index.jsonl` are not conversation transcripts. Single files are detected by their `session_meta` header, regardless of filename. Exact `event_msg` mirrors are preserved as source events while one-for-one matching `response_item` messages are displayed once; unmatched event messages remain visible. Reasoning (including encrypted data), compaction, context, usage and unknown events are retained, available through `show --all` / JSON export. This reads saved source history; it does not reconstruct inherited fork/page history, execute tools, decrypt reasoning, or create a resumable native Codex session. See [Codex compatibility and evidence](docs/codex.md).
 
 The DeepSeek adapter is based on the [official session types](https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/core/session/src/types.ts) and [canonical export implementation](https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/session-query/session-log-export/src/archive.ts). Fixtures cover native v4 tool messages, legacy v3 tool-result wrappers and v0 compact batches. Compact chunk batches remain complete `source.event` records with their original arrays and `time0` timestamp; they are not expanded into synthetic messages. Other unrecognized event shapes also remain raw source events; this project does not run DeepSeek's migration engine.
 

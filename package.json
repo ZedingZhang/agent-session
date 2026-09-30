@@ -1,6 +1,6 @@
 {
   "name": "ctxcrate",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Local-first AI agent session archive with a unified JSONL schema and pluggable adapters",
   "engines": {
     "node": ">=24"
@@ -36,6 +36,7 @@
     "session",
     "jsonl",
     "deepseek",
+    "codex",
     "cli",
     "local-first"
   ],

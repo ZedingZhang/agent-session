@@ -2,6 +2,7 @@ import { isAbsolute, resolve, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { deepseekAdapter } from './deepseek.js';
+import { codexAdapter } from './codex.js';
 import { jsonAdapter } from './json.js';
 import { markdownAdapter } from './markdown.js';
 import type { AdapterInput, SessionAdapter } from './types.js';
@@ -9,7 +10,7 @@ import type { AdapterInput, SessionAdapter } from './types.js';
 export class AdapterRegistry {
   private readonly adapters = new Map<string, SessionAdapter>();
   constructor(builtins = true) {
-    if (builtins) for (const adapter of [deepseekAdapter, markdownAdapter, jsonAdapter]) this.register(adapter);
+    if (builtins) for (const adapter of [codexAdapter, deepseekAdapter, markdownAdapter, jsonAdapter]) this.register(adapter);
   }
   register(adapter: SessionAdapter): void {
     if (!adapter || !/^[a-z0-9][a-z0-9-]*$/.test(adapter.id) || typeof adapter.version !== 'string' ||

@@ -4,7 +4,7 @@
 
 一个用 TypeScript 实现的本地 Agent 会话库。通过独立 adapter 将不同 Agent 的会话转换为统一的 **JSONL 事件流**，在 CLI 查看历史，并在本地文件库之间合并同步。无需服务端或数据库，MIT 开源。
 
-MVP 支持 DeepSeek Harness 原生 JSONL / Zstandard 会话日志、会话目录和导出 ZIP、通用 JSON / JSONL、Markdown 会话、CLI 时间线与定时回放、TypeScript SDK 和外部 ESM adapter 插件。需要 **Node.js 24+**。
+MVP 支持 Codex CLI 原生 rollout JSONL 和会话目录、DeepSeek Harness 原生 JSONL / Zstandard 会话日志、会话目录和 DSH 导出 ZIP、通用 JSON / JSONL、Markdown 会话、CLI 时间线与定时回放、TypeScript SDK 和外部 ESM adapter 插件。需要 **Node.js 24+**。
 
 ## 快速开始
 
@@ -58,6 +58,8 @@ ctxcrate show <会话ID前缀>
 ctxcrate --library ./my-library import session.json --adapter json
 ctxcrate import session.v4.jsonl --adapter deepseek-harness
 ctxcrate import session.v4.jsonl.zstd
+ctxcrate import examples/codex-rollout.jsonl
+ctxcrate import ~/.codex/sessions --adapter codex
 ctxcrate import dsh-session-example.zip
 ctxcrate list --adapter deepseek-harness --query README
 ctxcrate list --json
@@ -142,11 +144,28 @@ node dist/cli.js show YOUR_ID_PREFIX --replay --speed 4
 
 | Adapter | 支持内容 |
 | --- | --- |
+| `codex` | 原生 `rollout-*.jsonl`、`sessions/`、`archived_sessions/` 或 Codex home 目录；转换消息与 function/custom tool 调用及结果，保留其他原始记录 |
 | `deepseek-harness` | 原生 `session[.vN].jsonl[.zstd]`、`{header, events}` JSON、会话目录或导出 ZIP；读取 0–4 版本 header |
 | `json` | 消息数组、`{title, messages}`、`{events}`、单条消息、JSONL；消息需要 `role` 和 `content` |
 | `markdown` | 使用 `## User`、`## Assistant`、`## System`、`## Developer`、`## Tool` 标题分隔的文本，也支持 `Human` |
 
-优先自动识别 DeepSeek，再匹配通用 JSON。Markdown 代码围栏中的角色标题不会被误切分，消息首尾空白会被裁剪，序言保存在源 metadata 中。JSON 消息的扩展字段保存在 `raw`。
+优先自动识别 Codex 和 DeepSeek，再匹配通用 JSON。Markdown 代码围栏中的角色标题不会被误切分，消息首尾空白会被裁剪，序言保存在源 metadata 中。JSON 消息的扩展字段保存在 `raw`。
+
+### 导入 Codex CLI 历史
+
+PowerShell 中可导入当前会话目录，或整个 Codex home（同时发现当前与归档会话）：
+
+```powershell
+node dist/cli.js import "$env:USERPROFILE\.codex\sessions" --adapter codex
+node dist/cli.js import "$env:USERPROFILE\.codex" --adapter codex
+# 如果配置了 CODEX_HOME，请改为传入该目录：
+node dist/cli.js import "$env:CODEX_HOME" --adapter codex
+node dist/cli.js history --adapter codex
+node dist/cli.js show YOUR_SESSION_ID --timezone Asia/Singapore
+node dist/cli.js export YOUR_SESSION_ID --format markdown --output codex-session.md
+```
+
+目录导入递归选择 `rollout-*.jsonl`，跳过并非完整对话的 `history.jsonl` 和 `session_index.jsonl`。单文件按 `session_meta` header 自动识别，不限制文件名。能够与 `response_item` 主消息逐条配对的相同 `event_msg` 消息以源事件保留，默认回放只显示一次；未配对的消息仍显示。reasoning（含加密字段）、压缩、上下文、用量和未知事件完整保留，可通过 `show --all` 或 JSON 导出查看。读取的是保存的源记录，不补全 fork/分页继承历史、不执行工具、不解密 reasoning，也不写回可恢复的 Codex 原生会话。格式依据、测试与限制见 [Codex 适配说明](docs/codex.md)。
 
 DeepSeek 实现参考官方原生事件与导出源码，测试覆盖 v4 原生工具消息、v3 旧工具结果包装和 v0 紧凑批次。紧凑 chunk 批次以完整 `source.event` 保留原始数组和 `time0` 时间，不展开为合成消息。其他未识别的形状也保留为 `source.event`，不执行 Harness 迁移引擎。
 

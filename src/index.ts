@@ -7,5 +7,6 @@ export * from './exporter.js';
 export * from './adapters/types.js';
 export * from './adapters/registry.js';
 export { deepseekAdapter } from './adapters/deepseek.js';
+export { codexAdapter } from './adapters/codex.js';
 export { jsonAdapter } from './adapters/json.js';
 export { markdownAdapter } from './adapters/markdown.js';

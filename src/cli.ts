@@ -2,14 +2,14 @@
 import { Command, InvalidArgumentError, Option } from 'commander';
 import { stat, writeFile } from 'node:fs/promises';
 import { AdapterRegistry } from './adapters/registry.js';
-import { importDshDirectory, importFile } from './importer.js';
+import { importSessionDirectory, importFile } from './importer.js';
 import { LocalSessionStore } from './store.js';
 import { serialize } from './schema.js';
 import type { SessionMetadata } from './schema.js';
 import { projectTimeline, formatTimelineEntry, timelineSpansDays, replayTimeline, sanitizeTerminal } from './timeline.js';
 import { exportSession, resolveExportFormat } from './exporter.js';
 
-const program = new Command().name('ctxcrate').version('0.5.0')
+const program = new Command().name('ctxcrate').version('0.6.0')
   .description('Archive AI agent sessions locally as unified JSONL events')
   .option('--library <directory>', 'Local file library (or CTXCRATE_HOME)')
   .option('--plugin <module>', 'Load a trusted adapter package or ESM file', (value, previous: string[]) => [...previous, value], []);
@@ -32,11 +32,11 @@ program.command('init').description('Create a local library').action(async () =>
 program.command('adapters').description('List built-in and loaded adapters').action(async () => {
   for (const adapter of (await registry()).list()) console.log(`${adapter.id}\t${adapter.version}\t${adapter.description}`);
 });
-program.command('import <path>').description('Import a file or recursively import a native DSH session directory')
+program.command('import <path>').description('Import a file or recursively import native DSH / Codex session directories')
   .option('-a, --adapter <id>', 'Select an adapter explicitly').option('--title <title>', 'Override session title')
   .action(async (file, options) => {
     const isDirectory = (await stat(file)).isDirectory();
-    const result = await (isDirectory ? importDshDirectory : importFile)(store(), await registry(), file, options);
+    const result = await (isDirectory ? importSessionDirectory : importFile)(store(), await registry(), file, options);
     for (const session of result.sessions) console.log(`${session.status}\t${session.id}`);
     for (const warning of result.warnings) console.error(`Warning: ${warning}`);
   });

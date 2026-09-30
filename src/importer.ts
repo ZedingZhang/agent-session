@@ -105,3 +105,34 @@ export async function importDshDirectory(store: LocalSessionStore, registry: Ada
   }
   return { sessions, warnings };
 }
+
+/** Discover only native rollout files; history.jsonl and session_index.jsonl are not transcripts. */
+export async function discoverCodexLogs(directory: string): Promise<string[]> {
+  const files: string[] = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...await discoverCodexLogs(path));
+    else if (entry.isFile() && /^rollout-.+\.jsonl$/.test(entry.name)) files.push(path);
+  }
+  return files.sort();
+}
+
+/** Directory adapters are explicit when supplied; automatic mode discovers both native formats. */
+export async function importSessionDirectory(store: LocalSessionStore, registry: AdapterRegistry, directory: string, options: ImportOptions = {}) {
+  if (options.adapter && !['codex', 'deepseek-harness'].includes(options.adapter))
+    throw new Error('Directory import supports codex or deepseek-harness adapters');
+  const files: { path: string; adapter: string }[] = [];
+  if (options.adapter !== 'codex') files.push(...(await discoverDshLogs(directory)).map(path => ({ path, adapter: 'deepseek-harness' })));
+  if (options.adapter !== 'deepseek-harness') files.push(...(await discoverCodexLogs(directory)).map(path => ({ path, adapter: 'codex' })));
+  if (!files.length) throw new Error(`Directory contains no native ${options.adapter ?? 'DSH or Codex'} session logs`);
+  const sessions: { id: string; status: 'created' | 'exists' }[] = [], warnings: string[] = [];
+  for (const file of files.sort((a, b) => a.path.localeCompare(b.path))) {
+    try {
+      const result = await importFile(store, registry, file.path, { ...options, adapter: file.adapter });
+      sessions.push(...result.sessions); warnings.push(...result.warnings);
+    } catch (cause) {
+      throw new Error(`Directory import stopped at ${file.path}; earlier imports are retained and retrying is safe. ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    }
+  }
+  return { sessions, warnings };
+}

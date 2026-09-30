@@ -57,7 +57,7 @@ export function sanitizeTerminal(text: string): string {
 }
 function callSummary(name: string, value: unknown, verbose = false): string {
   const args = parsed(value);
-  const command = firstString(args.command, args.cmd, args.script);
+  const command = firstString(args.command, args.cmd, args.script) ?? (Array.isArray(args.command) ? JSON.stringify(args.command) : undefined);
   if (shellNames.has(toolName(name))) return command ?? preview(textContent(value), verbose);
   const path = pathOf(args);
   if (path) {
@@ -119,7 +119,7 @@ function diffText(diff: RecordedDiff, verbose = false): string {
   return `${diff.path ? `${diff.path}\n` : ''}${output.join('\n')}${truncated ? '\n… (diff truncated; use --verbose)' : ''}`;
 }
 function isTestCommand(command: string): boolean {
-  return /(?:^|[;&|]\s*)\s*(?:(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?test(?:[\s:]|$)|(?:npx\s+)?(?:vitest|jest|pytest)\b|(?:cargo|go|dotnet|mvn|gradle)\s+test\b|node\s+--test\b|ctest\b)/i.test(command);
+  return /(?:^|[;&|]\s*)\s*(?:(?:npm|pnpm|yarn|bun)(?:\.cmd)?\s+(?:run\s+)?test(?:[\s:]|$)|(?:npx\s+)?(?:vitest|jest|pytest)\b|(?:cargo|go|dotnet|mvn|gradle)\s+test\b|node\s+--test\b|ctest\b)/i.test(command);
 }
 
 /** A read-only display projection. Archive order wins over possibly missing/regressing clocks. */
@@ -154,7 +154,12 @@ export function projectTimeline(events: readonly SessionEvent[], options: Timeli
         const args = call ? parsed(call.data.arguments) : {};
         const meta = resultMeta(event), value = outputObject(event.data.content);
         const text = outputText(event.data.content);
-        const status = value.exitCode ?? meta.exitCode ?? /\[exit code:\s*(-?\d+)\]/i.exec(text)?.[1];
+        const codexHeader = record(event.data.raw).type === 'response_item'
+          ? text.split(/\r?\n(?:Final output|Output):\r?\n/, 2) : [];
+        const codexExitCode = codexHeader.length === 2
+          ? /(?:^|\n)Process exited with code (-?\d+)\s*(?:\n|$)/.exec(codexHeader[0]!)?.[1] : undefined;
+        const status = value.exitCode ?? meta.exitCode ?? /\[exit code:\s*(-?\d+)\]/i.exec(text)?.[1]
+          ?? codexExitCode;
         const exitCode = status !== undefined && status !== null && /^-?\d+$/.test(String(status)) ? Number(status) : undefined;
         const testFailure = /(?:^|\n)\s*(?:FAIL(?:ED)?\b|[✖×]|AssertionError\b|Expected[^\n]+(?:but received|but got))|\b[1-9]\d*\s+(?:tests?\s+)?failed\b/i.test(text);
         const shell = shellNames.has(name);
