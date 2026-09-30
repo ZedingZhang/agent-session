@@ -1,4 +1,4 @@
-# Agent Session
+# ctxcrate
 
 [English](README.md)
 
@@ -13,8 +13,8 @@ MVP 支持 DeepSeek Harness 原生 JSONL / Zstandard 会话日志、会话目录
 使用 `npm.cmd`，避免 PowerShell 选择可能被脚本执行策略拦截的 `npm.ps1`。无需修改系统执行策略。下面直接用 `node` 运行 CLI，不需要先执行 `npm link`。
 
 ```powershell
-git clone https://github.com/ZedingZhang/agent-session.git
-cd agent-session
+git clone https://github.com/ZedingZhang/ctxcrate.git
+cd ctxcrate
 npm.cmd ci
 npm.cmd --silent run build
 
@@ -27,26 +27,26 @@ node dist/cli.js history
 
 从历史列表复制 ID 前缀，再执行 `node dist/cli.js show YOUR_ID_PREFIX`，将 `YOUR_ID_PREFIX` 替换为实际值。已有本地仓库时，进入仓库目录并跳过 `git clone`。
 
-静默构建会省略 npm 的脚本标题，成功时通常没有输出。等 PowerShell 提示符返回后再输入下一条命令；`$LASTEXITCODE` 应为 `0`。如果希望注册 CLI，可执行 `npm.cmd link`，然后在 PowerShell 使用 `agent-session.cmd`，同样避开其 `.ps1` 启动脚本。
+静默构建会省略 npm 的脚本标题，成功时通常没有输出。等 PowerShell 提示符返回后再输入下一条命令；`$LASTEXITCODE` 应为 `0`。如果希望注册 CLI，可执行 `npm.cmd link`，然后在 PowerShell 使用 `ctxcrate.cmd`，同样避开其 `.ps1` 启动脚本。
 
 ### macOS / Linux
 
 ```sh
-git clone https://github.com/ZedingZhang/agent-session.git
-cd agent-session
+git clone https://github.com/ZedingZhang/ctxcrate.git
+cd ctxcrate
 npm ci
 npm run build
 npm link
 
-agent-session init
-agent-session import examples/conversation.md
-agent-session import examples/conversation.json
-agent-session import examples/deepseek-session.jsonl
-agent-session history
-agent-session show <会话ID前缀>
+ctxcrate init
+ctxcrate import examples/conversation.md
+ctxcrate import examples/conversation.json
+ctxcrate import examples/deepseek-session.jsonl
+ctxcrate history
+ctxcrate show <会话ID前缀>
 ```
 
-暂未发布 npm 包，通过源码安装；也可以将 `agent-session` 替换为 `node dist/cli.js`。
+暂未发布 npm 包，通过源码安装；也可以将 `ctxcrate` 替换为 `node dist/cli.js`。
 
 ### 终端输出重叠
 
@@ -55,26 +55,28 @@ agent-session show <会话ID前缀>
 ## 常用命令
 
 ```sh
-agent-session --library ./my-library import session.json --adapter json
-agent-session import session.v4.jsonl --adapter deepseek-harness
-agent-session import session.v4.jsonl.zstd
-agent-session import dsh-session-example.zip
-agent-session list --adapter deepseek-harness --query README
-agent-session list --json
-agent-session show <id> --all
-agent-session show <id> --replay --speed 4
-agent-session show <id> --verbose --timezone UTC
-agent-session show <id> --json
-agent-session export <id> --output session.jsonl
-agent-session export <id> --format markdown --output session.md
-agent-session export <id> --format json --output session.json
-agent-session --library ./my-library sync ./other-library
-agent-session adapters
+ctxcrate --library ./my-library import session.json --adapter json
+ctxcrate import session.v4.jsonl --adapter deepseek-harness
+ctxcrate import session.v4.jsonl.zstd
+ctxcrate import dsh-session-example.zip
+ctxcrate list --adapter deepseek-harness --query README
+ctxcrate list --json
+ctxcrate show <id> --all
+ctxcrate show <id> --replay --speed 4
+ctxcrate show <id> --verbose --timezone UTC
+ctxcrate show <id> --json
+ctxcrate export <id> --output session.jsonl
+ctxcrate export <id> --format markdown --output session.md
+ctxcrate export <id> --format json --output session.json
+ctxcrate --library ./my-library sync ./other-library
+ctxcrate adapters
 ```
 
 `history` 是 `list` 的别名。会话 ID 支持至少 8 位、无歧义的小写十六进制前缀。`show` 默认显示可读时间线，包含消息、工具、Shell 命令、结果和已记录的 diff；`--all` 还显示源生命周期与未知事件。`show --json` 输出原始统一 JSONL，`list --json` 输出 JSON 数组。导出文件拒绝覆盖已有文件。
 
-默认库目录为 `~/.agent-session`，可用 `AGENT_SESSION_HOME` 环境变量或 `--library` 更改。CLI 不调用 Agent API，也不上传会话。
+默认库目录为 `~/.ctxcrate`，可用 `CTXCRATE_HOME` 环境变量或 `--library` 更改。CLI 不调用 Agent API，也不上传会话。
+
+项目原名为 `agent-session`。已有 JSONL 归档和会话 ID 保持不变，JSON 导入同时接受旧的 `agent-session` 和新的 `ctxcrate` 格式标识。未设置 `CTXCRATE_HOME` 时，仍兼容旧环境变量 `AGENT_SESSION_HOME`；两个变量都未设置且 `~/.ctxcrate` 不存在时，会继续使用已有的 `~/.agent-session` 库。不自动移动文件，`--library` 始终优先指定库位置。
 
 ## 导出选定会话
 
@@ -99,7 +101,7 @@ node dist/cli.js export YOUR_SESSION_ID -o session.json
 
 Markdown 不采用 CLI 的工具输出预览截断，消息和工具内容完整导出。`--all` 可加入源生命周期及未知事件，`--timezone UTC` 可指定显示时区。内容放在代码围栏中，避免原始 Markdown 标题、HTML 或嵌套代码围栏破坏报告结构；可读报告会移除终端控制序列，JSON / JSONL 则保留原始内容。Markdown 不推断缺失 diff，也不重建源运行时上下文。
 
-显式 `--format` 优先于文件扩展名。不指定时，`.md` / `.markdown` 选择 Markdown，`.json` 选择 JSON，其余默认 JSONL。不提供 `--output` 时输出到终端。文件使用 UTF-8，父目录需要已存在，拒绝覆盖已有文件。导出的 JSON 可以直接通过 `agent-session import session.json` 再导入，无需指定 adapter。更多规则见 [导出说明](docs/exports.md)。
+显式 `--format` 优先于文件扩展名。不指定时，`.md` / `.markdown` 选择 Markdown，`.json` 选择 JSON，其余默认 JSONL。不提供 `--output` 时输出到终端。文件使用 UTF-8，父目录需要已存在，拒绝覆盖已有文件。导出的 JSON 可以直接通过 `ctxcrate import session.json` 再导入，无需指定 adapter。更多规则见 [导出说明](docs/exports.md)。
 
 ## 会话过程展示与回放
 
@@ -193,7 +195,7 @@ ZIP 的主会话和子会话分别入库，读取其中未压缩日志。**MVP �
 每个 adapter 实现 `SessionAdapter` 接口：`id`、`version`、`description`、`detect(input)`、`parse(input)`。可加载 ESM 文件或已安装的 npm 包：
 
 ```sh
-agent-session --plugin ./examples/custom-adapter.mjs import notes.txt --adapter notes
+ctxcrate --plugin ./examples/custom-adapter.mjs import notes.txt --adapter notes
 ```
 
 插件会在 Node 进程执行，仅加载信任的插件。参考 [Adapter 开发指南](docs/adapters.md)、[示例插件](examples/custom-adapter.mjs) 和 [贡献指南](CONTRIBUTING.md)。SDK 导出运行时校验 Schema、registry、导入与文件库存储接口，以及 `projectTimeline`、`formatTimelineEntry`、`timelineSpansDays` 和异步 `replayTimeline`。

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .agent-session/
+.ctxcrate/
 *.tgz
 *.tmp
 .env

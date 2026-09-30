@@ -3,7 +3,7 @@
 An adapter translates a source format into `AdapterSession[]`; core handles schema validation, canonical identity, publication and deduplication. Built-ins live in `src/adapters`; community adapters can ship independently.
 
 ```ts
-import type { SessionAdapter } from '@zedings/agent-session';
+import type { SessionAdapter } from 'ctxcrate';
 
 const adapter: SessionAdapter = {
   id: 'my-agent',

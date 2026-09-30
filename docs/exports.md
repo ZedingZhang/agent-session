@@ -25,7 +25,7 @@ JSON is a single pretty-printed document with these fields:
 
 | Field | Meaning |
 | --- | --- |
-| `format` | Literal `agent-session`, distinguishes the document from generic adapter input |
+| `format` | New exports use `ctxcrate`; imports also accept the legacy `agent-session` marker |
 | `schemaVersion` | Literal `1`, the contained event schema version |
 | `sessionId` | Original content-addressed snapshot ID |
 | `metadata` | Exact metadata from the `session.imported` event |
@@ -45,7 +45,7 @@ JSONL retains the existing canonical format: one event per line with a trailing 
 
 ```ts
 import { writeFile } from 'node:fs/promises';
-import { exportSession, parseSessionJson } from '@zedings/agent-session';
+import { exportSession, parseSessionJson } from 'ctxcrate';
 
 await writeFile('session.md', exportSession(events, 'markdown', {
   timeZone: 'Asia/Singapore', all: true,

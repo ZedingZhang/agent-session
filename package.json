@@ -1,12 +1,12 @@
 {
-  "name": "@zedings/agent-session",
-  "version": "0.4.0",
+  "name": "ctxcrate",
+  "version": "0.5.0",
   "description": "Local-first AI agent session archive with a unified JSONL schema and pluggable adapters",
   "engines": {
     "node": ">=24"
   },
   "bin": {
-    "agent-session": "dist/cli.js"
+    "ctxcrate": "dist/cli.js"
   },
   "exports": {
     ".": {
@@ -44,7 +44,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ZedingZhang/agent-session.git"
+    "url": "git+https://github.com/ZedingZhang/ctxcrate.git"
   },
   "dependencies": {
     "commander": "^15.0.0",

@@ -7,7 +7,7 @@ import { formatTimelineEntry, projectTimeline, sanitizeTerminal, timelineSpansDa
 export type ExportFormat = 'jsonl' | 'json' | 'markdown';
 export interface ExportOptions { all?: boolean; timeZone?: string }
 export const sessionJsonSchema = z.object({
-  format: z.literal('agent-session'), schemaVersion: z.literal(1),
+  format: z.enum(['ctxcrate', 'agent-session']), schemaVersion: z.literal(1),
   sessionId: z.string().regex(/^[a-f0-9]{64}$/), metadata: metadataSchema,
   events: z.array(eventSchema).min(1),
 }).strict();
@@ -51,7 +51,7 @@ export function exportSession(input: readonly SessionEvent[], format: ExportForm
   const header = events[0]!;
   if (header.type !== 'session.imported') throw new Error('Missing session metadata');
   if (format === 'jsonl') return serialize(events);
-  if (format === 'json') return JSON.stringify({ format: 'agent-session', schemaVersion: 1,
+  if (format === 'json') return JSON.stringify({ format: 'ctxcrate', schemaVersion: 1,
     sessionId: header.sessionId, metadata: header.data, events }, null, 2) + '\n';
   if (format !== 'markdown') throw new Error(`Unknown export format: ${String(format)}`);
   const timeZone = new Intl.DateTimeFormat('en', { timeZone: options.timeZone }).resolvedOptions().timeZone;

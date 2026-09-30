@@ -423,6 +423,6 @@
       ]
     }
   },
-  "$id": "https://github.com/ZedingZhang/agent-session/blob/main/schema/session-event.v1.schema.json",
-  "title": "Agent Session Event v1"
+  "$id": "https://github.com/ZedingZhang/ctxcrate/blob/main/schema/session-event.v1.schema.json",
+  "title": "ctxcrate Event v1"
 }

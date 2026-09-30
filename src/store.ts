@@ -2,10 +2,16 @@ import { link, mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promi
 import { randomUUID } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { existsSync } from 'node:fs';
 import { canonical, parseArchive, serialize } from './schema.js';
 import type { SessionEvent, SessionMetadata } from './schema.js';
 
-export const defaultLibrary = () => resolve(process.env.AGENT_SESSION_HOME ?? join(homedir(), '.agent-session'));
+export function defaultLibrary(home = homedir(), env: NodeJS.ProcessEnv = process.env): string {
+  const configured = env.CTXCRATE_HOME ?? env.AGENT_SESSION_HOME;
+  if (configured !== undefined) return resolve(configured);
+  const current = join(home, '.ctxcrate'), legacy = join(home, '.agent-session');
+  return resolve(existsSync(current) || !existsSync(legacy) ? current : legacy);
+}
 export interface SessionSummary {
   id: string; title: string; adapter: string; eventCount: number; messageCount: number; lastTimestamp: string | null;
 }

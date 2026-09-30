@@ -14,7 +14,7 @@ const lines = fixture.split('\n');
 if (lines.at(-1) === '') lines.pop();
 const compress = input => zstdCompressSync(Buffer.from(input), { params: { [constants.ZSTD_c_checksumFlag]: 1 } });
 const batches = () => Buffer.concat(lines.map(line => compress(line + '\n')));
-async function library() { return new LocalSessionStore(await mkdtemp(join(tmpdir(), 'agent-session-zstd-'))); }
+async function library() { return new LocalSessionStore(await mkdtemp(join(tmpdir(), 'ctxcrate-zstd-'))); }
 
 test('concatenated header + append frames recover every event, including thousands of frames', () => {
   // Reproduce the silent first-frame loss observed in native DSH persistence logs.

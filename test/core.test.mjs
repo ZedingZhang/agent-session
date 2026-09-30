@@ -9,7 +9,7 @@ import { AdapterRegistry, LocalSessionStore, importFile, materialize, serialize,
   sha256, markdownAdapter, jsonAdapter, deepseekAdapter } from '../dist/index.js';
 
 const fixture = await readFile(new URL('../examples/deepseek-session.jsonl', import.meta.url), 'utf8');
-async function library() { return new LocalSessionStore(await mkdtemp(join(tmpdir(), 'agent-session-test-'))); }
+async function library() { return new LocalSessionStore(await mkdtemp(join(tmpdir(), 'ctxcrate-test-'))); }
 const metadata = { title: 'Test', adapter: { id: 'test', version: '1' }, source: { format: 'test', sha256: sha256('test') } };
 const draft = { type: 'message', timestamp: null, data: { role: 'user', content: 'Hello' } };
 const sample = () => materialize(metadata, [draft]);

@@ -39,7 +39,10 @@ export async function importFile(store: LocalSessionStore, registry: AdapterRegi
   const archives: SessionEvent[][] = [];
   for (const input of inputs) {
     let sessionJson = false;
-    try { sessionJson = JSON.parse(input.content.replace(/^\uFEFF/, '')).format === 'agent-session'; } catch { /* Other input formats. */ }
+    try {
+      const format = JSON.parse(input.content.replace(/^\uFEFF/, '')).format;
+      sessionJson = format === 'ctxcrate' || format === 'agent-session';
+    } catch { /* Other input formats. */ }
     if (sessionJson) {
       if (options.title || options.adapter) throw new Error('Canonical JSON exports cannot be retitled or re-adapted');
       archives.push(parseSessionJson(input.content)); continue;

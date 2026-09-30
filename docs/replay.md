@@ -39,7 +39,7 @@ Assembled Agent messages retain their recorded event timestamp, often completion
 The SDK exports an async iterator with an optional `AbortSignal`:
 
 ```ts
-import { projectTimeline, formatTimelineEntry, timelineSpansDays, replayTimeline } from '@zedings/agent-session';
+import { projectTimeline, formatTimelineEntry, timelineSpansDays, replayTimeline } from 'ctxcrate';
 
 const entries = projectTimeline(events, { verbose: false });
 const timeZone = 'Asia/Singapore';

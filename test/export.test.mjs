@@ -17,7 +17,7 @@ test('JSON export preserves all events, raw metadata and original archive identi
   const original = JSON.stringify(events);
   const text = exportSession(events, 'json');
   const document = JSON.parse(text);
-  assert.equal(document.format, 'agent-session'); assert.equal(document.schemaVersion, 1);
+  assert.equal(document.format, 'ctxcrate'); assert.equal(document.schemaVersion, 1);
   assert.equal(document.sessionId, events[0].sessionId);
   assert.deepEqual(document.metadata, events[0].data);
   assert.deepEqual(document.events, events);

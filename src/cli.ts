@@ -9,9 +9,9 @@ import type { SessionMetadata } from './schema.js';
 import { projectTimeline, formatTimelineEntry, timelineSpansDays, replayTimeline, sanitizeTerminal } from './timeline.js';
 import { exportSession, resolveExportFormat } from './exporter.js';
 
-const program = new Command().name('agent-session').version('0.4.0')
+const program = new Command().name('ctxcrate').version('0.5.0')
   .description('Archive AI agent sessions locally as unified JSONL events')
-  .option('--library <directory>', 'Local file library (or AGENT_SESSION_HOME)')
+  .option('--library <directory>', 'Local file library (or CTXCRATE_HOME)')
   .option('--plugin <module>', 'Load a trusted adapter package or ESM file', (value, previous: string[]) => [...previous, value], []);
 const store = () => new LocalSessionStore(program.opts().library);
 async function registry() {
@@ -46,7 +46,7 @@ program.command('list').alias('history').description('List archived sessions')
     const sessions = (await store().list()).filter(s => (!options.adapter || s.adapter === options.adapter) &&
       (!options.query || s.title.toLowerCase().includes(options.query.toLowerCase())));
     if (options.json) console.log(JSON.stringify(sessions, null, 2));
-    else if (!sessions.length) console.log('No sessions. Use agent-session import <file>.');
+    else if (!sessions.length) console.log('No sessions. Use ctxcrate import <file>.');
     else for (const s of sessions) console.log(safe(`${s.id.slice(0, 12)}\t${s.adapter}\t${s.messageCount} messages\t${s.lastTimestamp ?? 'unknown time'}\t${s.title}`));
   });
 program.command('show <id>').description('Display a session timeline by full ID or unambiguous prefix (8+ characters)')

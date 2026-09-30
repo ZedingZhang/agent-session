@@ -1,4 +1,4 @@
-# Agent Session
+# ctxcrate
 
 [简体中文](README.zh-CN.md)
 
@@ -13,8 +13,8 @@ A local-first archive for AI agent conversations. Import different agent formats
 Use `npm.cmd` so PowerShell does not select the `npm.ps1` shim, which may be blocked by the script execution policy. No execution-policy change is needed. The commands below run the CLI directly, so `npm link` is optional.
 
 ```powershell
-git clone https://github.com/ZedingZhang/agent-session.git
-cd agent-session
+git clone https://github.com/ZedingZhang/ctxcrate.git
+cd ctxcrate
 npm.cmd ci
 npm.cmd --silent run build
 
@@ -27,26 +27,26 @@ node dist/cli.js history
 
 Copy an ID prefix from history and run `node dist/cli.js show YOUR_ID_PREFIX`, replacing `YOUR_ID_PREFIX` with that value. If the repository is already on disk, start in its directory and skip `git clone`.
 
-The silent build suppresses npm's script banners; a successful build normally prints nothing. Wait for the PowerShell prompt to return before entering the next command. `$LASTEXITCODE` should be `0`. If you prefer a linked CLI, run `npm.cmd link`, then use `agent-session.cmd` in PowerShell to avoid its `.ps1` shim too.
+The silent build suppresses npm's script banners; a successful build normally prints nothing. Wait for the PowerShell prompt to return before entering the next command. `$LASTEXITCODE` should be `0`. If you prefer a linked CLI, run `npm.cmd link`, then use `ctxcrate.cmd` in PowerShell to avoid its `.ps1` shim too.
 
 ### macOS / Linux
 
 ```sh
-git clone https://github.com/ZedingZhang/agent-session.git
-cd agent-session
+git clone https://github.com/ZedingZhang/ctxcrate.git
+cd ctxcrate
 npm ci
 npm run build
 npm link
 
-agent-session init
-agent-session import examples/conversation.md
-agent-session import examples/conversation.json
-agent-session import examples/deepseek-session.jsonl
-agent-session history
-agent-session show <session-id-prefix>
+ctxcrate init
+ctxcrate import examples/conversation.md
+ctxcrate import examples/conversation.json
+ctxcrate import examples/deepseek-session.jsonl
+ctxcrate history
+ctxcrate show <session-id-prefix>
 ```
 
-The npm package is not published yet; install from this repository. You can use `node dist/cli.js` instead of `npm link` and `agent-session`.
+The npm package is not published yet; install from this repository. You can use `node dist/cli.js` instead of `npm link` and `ctxcrate`.
 
 ### Terminal output troubleshooting
 
@@ -55,27 +55,29 @@ If build output overlaps the next prompt or typed command, use `npm.cmd --silent
 ## CLI
 
 ```sh
-agent-session --help
-agent-session --library ./my-library import conversation.json --adapter json
-agent-session import session.v4.jsonl --adapter deepseek-harness
-agent-session import session.v4.jsonl.zstd
-agent-session import dsh-session-example.zip
-agent-session list --adapter deepseek-harness --query README
-agent-session list --json
-agent-session show <id> --all
-agent-session show <id> --replay --speed 4
-agent-session show <id> --verbose --timezone UTC
-agent-session show <id> --json
-agent-session export <id> --output session.jsonl
-agent-session export <id> --format markdown --output session.md
-agent-session export <id> --format json --output session.json
-agent-session --library ./my-library sync ./another-library
-agent-session adapters
+ctxcrate --help
+ctxcrate --library ./my-library import conversation.json --adapter json
+ctxcrate import session.v4.jsonl --adapter deepseek-harness
+ctxcrate import session.v4.jsonl.zstd
+ctxcrate import dsh-session-example.zip
+ctxcrate list --adapter deepseek-harness --query README
+ctxcrate list --json
+ctxcrate show <id> --all
+ctxcrate show <id> --replay --speed 4
+ctxcrate show <id> --verbose --timezone UTC
+ctxcrate show <id> --json
+ctxcrate export <id> --output session.jsonl
+ctxcrate export <id> --format markdown --output session.md
+ctxcrate export <id> --format json --output session.json
+ctxcrate --library ./my-library sync ./another-library
+ctxcrate adapters
 ```
 
 `history` aliases `list`. IDs accept unambiguous lowercase hexadecimal prefixes of at least eight characters. `show` displays a readable timeline of messages, tools, shell commands, results and recorded diffs by default; `--all` includes original lifecycle and unknown events. `--json` on `show` emits the unchanged JSONL archive; on `list` it emits a JSON array. Export to a file refuses to overwrite existing files.
 
-The default library is `~/.agent-session`. Override it with `AGENT_SESSION_HOME` or `--library`. The CLI does not contact agent APIs or upload conversations.
+The default library is `~/.ctxcrate`. Override it with `CTXCRATE_HOME` or `--library`. The CLI does not contact agent APIs or upload conversations.
+
+Previously named `agent-session`. Existing JSONL archives and session IDs remain unchanged; JSON imports accept both the old `agent-session` format marker and the new `ctxcrate` marker. For existing installations, `AGENT_SESSION_HOME` remains a fallback when `CTXCRATE_HOME` is unset. Without either variable, an existing `~/.agent-session` library is used if `~/.ctxcrate` does not exist. No files are moved automatically; `--library` always selects an explicit location.
 
 ## Export a selected session
 
@@ -100,7 +102,7 @@ node dist/cli.js export YOUR_SESSION_ID -o session.json
 
 Markdown includes all message/tool content without CLI preview truncation. Add `--all` to include original lifecycle and unknown source events, or `--timezone UTC` to select display times. Content is fenced so embedded Markdown headings, HTML and code fences cannot break the report structure. Terminal control sequences are removed from the readable report; JSON and JSONL preserve raw content. Markdown does not create a missing diff or reconstruct source runtime state.
 
-Explicit `--format` takes precedence over the filename. Without it, `.md` / `.markdown` select Markdown, `.json` selects JSON, and everything else defaults to JSONL. Without `--output`, the selected format is written to stdout. Output files are UTF-8, require an existing parent directory, and never overwrite an existing file. Exported JSON can be imported directly with `agent-session import session.json`; no adapter option is needed. See [export details](docs/exports.md).
+Explicit `--format` takes precedence over the filename. Without it, `.md` / `.markdown` select Markdown, `.json` selects JSON, and everything else defaults to JSONL. Without `--output`, the selected format is written to stdout. Output files are UTF-8, require an existing parent directory, and never overwrite an existing file. Exported JSON can be imported directly with `ctxcrate import session.json`; no adapter option is needed. See [export details](docs/exports.md).
 
 ## Session timelines and playback
 
@@ -200,8 +202,8 @@ To exchange data across machines, copy the library using your preferred file tra
 Adapters implement `SessionAdapter`: `id`, `version`, `description`, `detect(input)` and `parse(input)`. No storage or CLI changes are required. Load a trusted ESM file or installed package:
 
 ```sh
-agent-session --plugin ./examples/custom-adapter.mjs import notes.txt --adapter notes
-agent-session --plugin agent-session-adapter-example adapters
+ctxcrate --plugin ./examples/custom-adapter.mjs import notes.txt --adapter notes
+ctxcrate --plugin ctxcrate-adapter-example adapters
 ```
 
 Plugins execute code in the Node process. Install only adapters you trust. See the [adapter authoring guide](docs/adapters.md), [working plugin example](examples/custom-adapter.mjs) and [contributing guide](CONTRIBUTING.md).
@@ -209,7 +211,7 @@ Plugins execute code in the Node process. Install only adapters you trust. See t
 ## TypeScript SDK
 
 ```ts
-import { AdapterRegistry, LocalSessionStore, importFile } from '@zedings/agent-session';
+import { AdapterRegistry, LocalSessionStore, importFile } from 'ctxcrate';
 
 const library = new LocalSessionStore('./my-library');
 const registry = new AdapterRegistry();
