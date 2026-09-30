@@ -9,7 +9,9 @@ import { decompressZstdFrames, scanZstdFrames, AdapterRegistry, LocalSessionStor
   importFile, importDshDirectory, discoverDshLogs, deepseekAdapter } from '../dist/index.js';
 
 const fixture = await readFile(new URL('../examples/deepseek-session.jsonl', import.meta.url), 'utf8');
-const lines = fixture.trimEnd().split('\n');
+// Preserve CR in CRLF fixtures: trimming it changes source bytes and thus snapshot identity.
+const lines = fixture.split('\n');
+if (lines.at(-1) === '') lines.pop();
 const compress = input => zstdCompressSync(Buffer.from(input), { params: { [constants.ZSTD_c_checksumFlag]: 1 } });
 const batches = () => Buffer.concat(lines.map(line => compress(line + '\n')));
 async function library() { return new LocalSessionStore(await mkdtemp(join(tmpdir(), 'agent-session-zstd-'))); }
@@ -19,6 +21,10 @@ test('concatenated header + append frames recover every event, including thousan
   // Native decoder behavior can change across Node releases; our result must always include every frame.
   assert.ok(zstdDecompressSync(batches()).toString().startsWith(lines[0] + '\n'));
   assert.equal(decompressZstdFrames(batches()).toString(), fixture);
+  for (const text of [fixture.replace(/\r\n/g, '\n'), fixture.replace(/\r?\n/g, '\r\n')]) {
+    const frames = text.split('\n').slice(0, -1).map(line => compress(line + '\n'));
+    assert.equal(decompressZstdFrames(Buffer.concat(frames)).toString(), text);
+  }
   assert.equal([...scanZstdFrames(batches())].length, lines.length);
   const repeated = Buffer.concat([compress(lines[0] + '\n'), ...Array.from({ length: 4817 }, () => compress(lines[1] + '\n'))]);
   const decoded = decompressZstdFrames(repeated).toString();
